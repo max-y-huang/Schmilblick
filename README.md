@@ -1,10 +1,10 @@
 # Schmilblick
 
-### `parse_mxl.py`
+### `/etl/parse_mxl.py`
 
-**Input:**
+**Input (Sample data [here](https://drive.google.com/drive/folders/19GXoGG40P6MN9dCoI2gPH88HKLXORbpS?usp=drive_link)):**
 
-- `/in/score.xml`: an uncompressed MusicXML file.
+- `/in/score.mxl`: a compressed MusicXML file.
 
 **Output:**
 
