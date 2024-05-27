@@ -13,9 +13,9 @@ from xml.etree import ElementTree
 import mxl_parser
 
 
-_IN_MXL_DIR = './in/<TEST_CASE>/score.mxl'
-_OUT_MIDI_DIR = './out/<TEST_CASE>/preview_<PART>.mid'
-_OUT_DATA_DIR = './out/<TEST_CASE>/data_<PART>.json'
+_IN_MXL_DIR = './in/<SCORE>.mxl'
+_OUT_MIDI_DIR = './out/<SCORE>/<PART>.mid'
+_OUT_DATA_DIR = './out/<SCORE>/<PART>.json'
 
 
 def import_mxl_as_xml(dir):
@@ -31,10 +31,9 @@ def import_mxl_as_xml(dir):
     return obj
 
 
-def save_notes_as_json(dir, notes, part):
+def save_notes_as_json(dir, notes):
     with open(dir, 'w') as f:
-        data = { 'part': part['name'], 'notes': [ n.as_json() for n in notes ] }
-        print(json.dumps(data), file=f)
+        print(json.dumps([ n.as_json() for n in notes ]), file=f)
 
 
 def save_notes_as_midi(dir, notes):
@@ -47,33 +46,43 @@ def save_notes_as_midi(dir, notes):
         MyMIDI.writeFile(f)
 
 
+def prompt_preview(score_name, parts):
+    selected_part_idx = 0
+    if len(parts) > 1:
+        print('Which part do you want to preview?')
+        for i, part in enumerate(parts):
+            print(f'\t[{i + 1}]: {part["name"]}')
+        try:
+            selected_part_idx = int(input('> ')) - 1
+        except:
+            # return on invalid choice
+            print('Preview cancelled.')
+            return
+    part_id = parts[selected_part_idx]['id']
+    out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part_id)
+    os.system(f'start {out_midi_dir}')
+
+
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-tc', '--test_case', help='the test case to use', required=True)
+    arg_parser.add_argument('-s', '--score', help='the MusicXML score to use', required=True)
     arg_parser.add_argument('-p', '--preview', help='preview a parsed part in MIDI', action='store_true')
     args = arg_parser.parse_args()
 
-    test_case = args.test_case
-    pathlib.Path(f'./out/{test_case}').mkdir(parents=True, exist_ok=True)
+    score_name = args.score
+    pathlib.Path(f'./out/{score_name}').mkdir(parents=True, exist_ok=True)
 
-    in_mxl_dir = _IN_MXL_DIR.replace('<TEST_CASE>', test_case)
-    score_obj = import_mxl_as_xml(in_mxl_dir).getroot()
+    in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
+    score = import_mxl_as_xml(in_mxl_dir).getroot()
 
-    parts = mxl_parser.PartParser(score_obj).parse()
+    parts = mxl_parser.PartParser(score).parse()
     for part in parts:
-        out_data_dir = _OUT_DATA_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
-        out_midi_dir = _OUT_MIDI_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
+        out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
+        out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         notes = mxl_parser.NoteParser(part['obj']).parse()
-        save_notes_as_json(out_data_dir, notes, part)
+        save_notes_as_json(out_data_dir, notes)
         save_notes_as_midi(out_midi_dir, notes)
     
     if args.preview:
-        selected_part_idx = 0
-        if len(parts) > 1:
-            print('Which part do you want to preview?')
-            for i, part in enumerate(parts):
-                print(f'\t[{i + 1}]: {part["name"]}')
-            selected_part_idx = int(input('> ')) - 1
-        out_midi_dir = _OUT_MIDI_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', parts[selected_part_idx]['id'])
-        os.system(f'start {out_midi_dir}')
+        prompt_preview(score_name, parts)
