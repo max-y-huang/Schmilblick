@@ -26,6 +26,7 @@ class Event:
 
 
 class ParserBase:
+    
     class ParseState:
         @property
         def time(self):
@@ -96,6 +97,25 @@ class ParserBase:
 
 
 class PartParser(ParserBase):
+    
+    objects_to_parse = {
+        'score_part': lambda x: x.tag == 'score-part',
+        'part': lambda x: x.tag == 'part',
+    }
+
+    def handle_score_part(self, state, obj):
+        part_id = obj.get('id').strip()
+        part_name = obj.find('part-name').text.strip()
+        state.acc.append({ 'id': part_id, 'name': part_name })
+    
+    def handle_part(self, state, obj):
+        part_id = obj.get('id')
+        for part in state.acc:
+            if part['id'] == part_id:
+                part['data'] = obj
+
+
+class NoteParser(ParserBase):
 
     def parse(self):
         notes = super().parse()
@@ -162,21 +182,21 @@ def pitch_xml_to_int(obj):
     return 12 + octave * 12 + _STEP_OFFSET[step] + alter
 
 
-def save_notes_as_json(notes, test_case, part_name, part_id):
-    with open(_OUT_DATA_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part_id), 'w') as f:
+def save_notes_as_json(dir, notes, part_name):
+    with open(dir, 'w') as f:
         note_data = [ note.as_json() for note in notes ]
         data = { 'part': part_name, 'notes': note_data }
         print(json.dumps(data), file=f)
 
 
-def save_notes_as_midi(notes, test_case, part_id):
+def save_notes_as_midi(dir, notes):
     track, channel = 0, 0
     MyMIDI = midiutil.MIDIFile(1, deinterleave=False)
     MyMIDI.addTempo(track, channel, 60)  # 60 bpm = 1 beat per second
     for note in notes:
         if type(note) is Event:
             MyMIDI.addNote(track, channel, note.data['pitch'], note.time, note.data['duration'], 127)
-    with open(_OUT_MIDI_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part_id), 'wb') as f:
+    with open(dir, 'wb') as f:
         MyMIDI.writeFile(f)
 
 
@@ -190,19 +210,20 @@ if __name__ == '__main__':
     test_case = args.test_case
     pathlib.Path(f'./out/{test_case}').mkdir(parents=True, exist_ok=True)
 
-    part_data = []
-    score_obj = import_mxl_as_xml(_IN_MXL_DIR.replace('<TEST_CASE>', test_case))
-    for part_obj in score_obj.findall('part'):
-        part_id = part_obj.get('id')
-        part_name = score_obj.find(f'.//score-part[@id="{part_id}"]/part-name').text
-        part_data.append((part_id, part_name))
-        notes = PartParser(part_obj).parse()
-        save_notes_as_json(notes, test_case, part_name, part_id)
-        save_notes_as_midi(notes, test_case, part_id)
+    in_mxl_dir = _IN_MXL_DIR.replace('<TEST_CASE>', test_case)
+    score_obj = import_mxl_as_xml(in_mxl_dir).getroot()
+
+    parts = PartParser(score_obj).parse()
+    for part in parts:
+        out_data_dir = _OUT_DATA_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
+        out_midi_dir = _OUT_MIDI_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
+        notes = NoteParser(part['data']).parse()
+        save_notes_as_json(out_data_dir, notes, part['name'])
+        save_notes_as_midi(out_midi_dir, notes)
     
     if args.preview:
         print('Which part do you want to preview?')
-        for i, (pid, name) in enumerate(part_data):
-            print(f'\t[{i + 1}]: {name}')
-        part = part_data[int(input('> ')) - 1][0]
+        for i, part in enumerate(parts):
+            print(f'\t[{i + 1}]: {part["name"]}')
+        part = parts[int(input('> ')) - 1]['id']
         os.system(f'start {_OUT_MIDI_DIR.replace("<TEST_CASE>", test_case).replace("<PART>", part)}')
