@@ -33,8 +33,11 @@ class ParserBase:
         
         @time.setter
         def time(self, value):
-            self.prev_time = self._time
+            self._prev_time = self._time
             self._time = value
+        
+        def get_prev_time(self):
+            return self._prev_time
 
         def __init__(self):
             self.acc = []
@@ -96,11 +99,13 @@ class PartParser(ParserBase):
 
     def parse(self):
         notes = super().parse()
+        notes.sort(key=lambda x: x[0].time)  # sort notes chronologically before merging
+        # merge tied notes
         merged_notes = []
         last_note_by_pitch = {}
         for note, is_tied in notes:
             pitch = note.data['pitch']
-            if is_tied and pitch in last_note_by_pitch:  # TODO: why do we need to check "pitch in last_note_by_pitch"?
+            if is_tied:
                 last_note_by_pitch[pitch].data['duration'] += note.data['duration']
             else:
                 last_note_by_pitch[pitch] = note
@@ -124,7 +129,7 @@ class PartParser(ParserBase):
         duration = state.normalize_duration(float(obj.find('duration').text.strip()))
         # handle start time for chord notes
         if is_chord:
-            state.time = state.prev_time  # go to start time of previous note
+            state.time = state.get_prev_time()  # go to start time of previous note
         # save pitched notes
         if not is_rest and is_pitched:
             pitch = pitch_xml_to_int(obj.find('pitch'))
@@ -178,20 +183,26 @@ def save_notes_as_midi(notes, test_case, part_id):
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-t', '--test_case', help='the test case to use', required=True)
-    arg_parser.add_argument('-p', '--preview', help='the part to preview in MIDI form')
+    arg_parser.add_argument('-tc', '--test_case', help='the test case to use', required=True)
+    arg_parser.add_argument('-p', '--preview', help='the part to preview in MIDI form', action='store_true')
     args = arg_parser.parse_args()
 
     test_case = args.test_case
-    pathlib.Path(f'./out/{test_case}').mkdir(parents=True, exist_ok=True) 
+    pathlib.Path(f'./out/{test_case}').mkdir(parents=True, exist_ok=True)
 
+    part_data = []
     score_obj = import_mxl_as_xml(_IN_MXL_DIR.replace('<TEST_CASE>', test_case))
     for part_obj in score_obj.findall('part'):
         part_id = part_obj.get('id')
         part_name = score_obj.find(f'.//score-part[@id="{part_id}"]/part-name').text
+        part_data.append((part_id, part_name))
         notes = PartParser(part_obj).parse()
         save_notes_as_json(notes, test_case, part_name, part_id)
         save_notes_as_midi(notes, test_case, part_id)
     
     if args.preview:
-        os.system(f'start {_OUT_MIDI_DIR.replace("<TEST_CASE>", test_case).replace("<PART>", args.preview)}')
+        print('Which part do you want to preview?')
+        for i, (pid, name) in enumerate(part_data):
+            print(f'\t[{i + 1}]: {name}')
+        part = part_data[int(input('> ')) - 1][0]
+        os.system(f'start {_OUT_MIDI_DIR.replace("<TEST_CASE>", test_case).replace("<PART>", part)}')
