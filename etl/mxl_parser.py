@@ -55,17 +55,17 @@ class ParserBase:
     }
 
     def handle_divisions(self, state, obj):
-        state.divisions = int(obj.text.strip())
+        state.divisions = int(obj.text)
 
     def handle_tempo(self, state, obj):
-        state.tempo = float(obj.get('tempo').strip())
+        state.tempo = float(obj.get('tempo'))
 
     def handle_backup(self, state, obj):
-        duration = state.normalize_duration(int(obj.find('duration').text.strip()))
+        duration = state.normalize_duration(int(obj.find('duration').text))
         state.time -= duration
 
     def handle_duration(self, state, obj):
-        duration = state.normalize_duration(int(obj.text.strip()))
+        duration = state.normalize_duration(int(obj.text))
         state.time += duration
 
 
@@ -77,8 +77,8 @@ class PartParser(ParserBase):
     }
 
     def handle_score_part(self, state, obj):
-        part_id = obj.get('id').strip()
-        part_name = obj.find('part-name').text.strip()
+        part_id = obj.get('id')
+        part_name = obj.find('part-name').text
         state.acc.append({ 'id': part_id, 'name': part_name })
     
     def handle_part(self, state, obj):
@@ -91,12 +91,13 @@ class PartParser(ParserBase):
 class NoteParser(ParserBase):
 
     class Note:
-        def __init__(self, time, data):
+        def __init__(self, time, duration, pitch):
             self.time = time
-            self.data = data
+            self.duration = duration
+            self.pitch = pitch
         
         def as_json(self):
-            return { 'time': self.time, 'data': self.data }
+            return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
 
     def parse(self):
         notes = super().parse()
@@ -105,20 +106,19 @@ class NoteParser(ParserBase):
         merged_notes = []
         last_note_by_pitch = {}
         for note, is_tied in notes:
-            pitch = note.data['pitch']
             if is_tied:
-                last_note_by_pitch[pitch].data['duration'] += note.data['duration']
+                last_note_by_pitch[note.pitch].duration += note.duration
             else:
-                last_note_by_pitch[pitch] = note
+                last_note_by_pitch[note.pitch] = note
                 merged_notes.append(note)
         return merged_notes
 
     def pitch_xml_to_int(self, obj):
         _STEP_OFFSET = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 }
-        step = obj.find('step').text.strip()
-        octave = int(obj.find('octave').text.strip())
+        step = obj.find('step').text
+        octave = int(obj.find('octave').text)
         try:
-            alter = int(obj.find('alter').text.strip())
+            alter = int(obj.find('alter').text)
         except:
             alter = 0
         return 12 + octave * 12 + _STEP_OFFSET[step] + alter
@@ -137,13 +137,13 @@ class NoteParser(ParserBase):
         # skip grace notes
         if is_grace_note:
             return
-        duration = state.normalize_duration(float(obj.find('duration').text.strip()))
+        duration = state.normalize_duration(float(obj.find('duration').text))
         # handle start time for chord notes
         if is_chord:
             state.time = state.get_prev_time()  # go to start time of previous note
         # save pitched notes
         if not is_rest and is_pitched:
             pitch = self.pitch_xml_to_int(obj.find('pitch'))
-            state.acc.append((NoteParser.Note(state.time, {'duration': duration, 'pitch': pitch}), is_tied))
+            state.acc.append((NoteParser.Note(state.time, duration, pitch), is_tied))
         # use up note duration
         state.time += duration

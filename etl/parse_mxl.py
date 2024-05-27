@@ -31,10 +31,9 @@ def import_mxl_as_xml(dir):
     return obj
 
 
-def save_notes_as_json(dir, notes, part_name):
+def save_notes_as_json(dir, notes, part):
     with open(dir, 'w') as f:
-        note_data = [ note.as_json() for note in notes ]
-        data = { 'part': part_name, 'notes': note_data }
+        data = { 'part': part['name'], 'notes': [ n.as_json() for n in notes ] }
         print(json.dumps(data), file=f)
 
 
@@ -43,7 +42,7 @@ def save_notes_as_midi(dir, notes):
     MyMIDI = midiutil.MIDIFile(1, deinterleave=False)
     MyMIDI.addTempo(track, channel, 60)  # 60 bpm = 1 beat per second
     for note in notes:
-        MyMIDI.addNote(track, channel, note.data['pitch'], note.time, note.data['duration'], 127)
+        MyMIDI.addNote(track, channel, note.pitch, note.time, note.duration, 127)
     with open(dir, 'wb') as f:
         MyMIDI.writeFile(f)
 
@@ -66,7 +65,7 @@ if __name__ == '__main__':
         out_data_dir = _OUT_DATA_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<TEST_CASE>', test_case).replace('<PART>', part['id'])
         notes = mxl_parser.NoteParser(part['obj']).parse()
-        save_notes_as_json(out_data_dir, notes, part['name'])
+        save_notes_as_json(out_data_dir, notes, part)
         save_notes_as_midi(out_midi_dir, notes)
     
     if args.preview:
