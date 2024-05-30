@@ -33,6 +33,8 @@ class ParserBase:
         state = ParserBase.ParseState()
         for obj, obj_type in self.get_objects(self.data):
             eval(f'self.handle_{obj_type}')(state, obj)
+        if self.parse_in_place:
+            return self.data
         return state.acc
 
     def get_objects(self, obj):
@@ -47,6 +49,8 @@ class ParserBase:
 
     ################################
     
+    parse_in_place = False
+
     default_objects_to_parse = {
         'divisions': lambda x: x.tag == 'divisions',
         'tempo': lambda x: x.tag == 'sound' and 'tempo' in x.attrib,
@@ -88,6 +92,20 @@ class PartParser(ParserBase):
                 part['obj'] = obj
 
 
+class MeasureParser(ParserBase):
+
+    parse_in_place = True
+    
+    objects_to_parse = {
+        'measure': lambda x: x.tag == 'measure',
+    }
+
+    def handle_measure(self, state, obj):
+        number = int(obj.get('number'))
+        for note in obj.findall('note'):
+            note.attrib['measure'] = number
+
+
 class NoteParser(ParserBase):
 
     class Note:
@@ -100,12 +118,13 @@ class NoteParser(ParserBase):
             return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
 
     def parse(self):
+        self.data = MeasureParser(self.data).parse()
         notes = super().parse()
         notes.sort(key=lambda x: x[0].time)  # sort notes chronologically before merging
         # merge tied notes
         merged_notes = []
         last_note_by_pitch = {}
-        for note, is_tied in notes:
+        for note, measure, is_tied in notes:
             if is_tied:
                 last_note_by_pitch[note.pitch].duration += note.duration
             else:
@@ -129,6 +148,7 @@ class NoteParser(ParserBase):
     
     def handle_note(self, state, obj):
         # get note information
+        measure = obj.get('measure')
         is_grace_note = obj.find('grace') is not None
         is_chord = obj.find('chord') is not None
         is_pitched = obj.find('pitch') is not None
@@ -144,6 +164,6 @@ class NoteParser(ParserBase):
         # save pitched notes
         if not is_rest and is_pitched:
             pitch = self.pitch_xml_to_int(obj.find('pitch'))
-            state.acc.append((NoteParser.Note(state.time, duration, pitch), is_tied))
+            state.acc.append((NoteParser.Note(state.time, duration, pitch), measure, is_tied))
         # use up note duration
         state.time += duration
