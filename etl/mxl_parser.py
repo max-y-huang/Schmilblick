@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 class ParserBase:
     
     class ParseState:
@@ -101,9 +103,23 @@ class MeasureParser(ParserBase):
     }
 
     def handle_measure(self, state, obj):
-        number = int(obj.get('number'))
+        number = int(obj.get('number')) - 1
         for note in obj.findall('note'):
             note.attrib['measure'] = number
+
+
+class RepeatParser(ParserBase):
+    # NOTE: assumes no nested repeats
+
+    objects_to_parse = {
+        'measure': lambda x: x.tag == 'measure',
+    }
+
+    def handle_measure(self, state, obj):
+        repeat = obj.find('.//repeat')
+        if repeat is None:
+            return
+        print(obj.get('number'), repeat.get('direction'))
 
 
 class NoteParser(ParserBase):
@@ -116,8 +132,32 @@ class NoteParser(ParserBase):
         
         def as_json(self):
             return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
+    
+    class NoteList:
+        def __init__(self):
+            self.notes = defaultdict(lambda: [])
+            self.last_measure = 0
+
+        def add(self, note, measure):
+            if measure > self.last_measure:
+                self.last_measure = measure
+            self.notes[measure].append(note)
+        
+        def flatten(self):
+            ret = []
+            for measure in range(self.last_measure + 1):
+                ret += [n for n in self.notes[measure]]
+            return ret
+        
+        def as_json(self):
+            ret = []
+            for measure in range(self.last_measure + 1):
+                ret.append([n.as_json() for n in self.notes[measure]])
+            return ret
+                
 
     def parse(self):
+        RepeatParser(self.data).parse()
         self.data = MeasureParser(self.data).parse()
         notes = super().parse()
         notes.sort(key=lambda x: x[0].time)  # sort notes chronologically before merging
@@ -129,8 +169,13 @@ class NoteParser(ParserBase):
                 last_note_by_pitch[note.pitch].duration += note.duration
             else:
                 last_note_by_pitch[note.pitch] = note
-                merged_notes.append(note)
-        return merged_notes
+                merged_notes.append((note, measure))
+        notes = merged_notes
+        # add notes to note list
+        note_list = NoteParser.NoteList()
+        for note, measure in notes:
+            note_list.add(note, measure)
+        return note_list
 
     def pitch_xml_to_int(self, obj):
         _STEP_OFFSET = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 }

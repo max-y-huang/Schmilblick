@@ -33,14 +33,14 @@ def import_mxl_as_xml(dir):
 
 def save_notes_as_json(dir, notes):
     with open(dir, 'w') as f:
-        print(json.dumps([ n.as_json() for n in notes ]), file=f)
+        print(json.dumps(notes.as_json()), file=f)
 
 
 def save_notes_as_midi(dir, notes):
     track, channel = 0, 0
     MyMIDI = midiutil.MIDIFile(1, deinterleave=False)
     MyMIDI.addTempo(track, channel, 60)  # 60 bpm = 1 beat per second
-    for note in notes:
+    for note in notes.flatten():
         MyMIDI.addNote(track, channel, note.pitch, note.time, note.duration, 127)
     with open(dir, 'wb') as f:
         MyMIDI.writeFile(f)
