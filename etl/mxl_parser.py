@@ -137,13 +137,29 @@ class NoteParser(ParserBase):
         def __init__(self):
             self.notes = defaultdict(lambda: [])
             self.last_measure = 0
+            self.repeats = []
 
         def add(self, note, measure):
             if measure > self.last_measure:
                 self.last_measure = measure
             self.notes[measure].append(note)
         
+        def set_repeats(self, repeats):
+            self.repeats = repeats
+        
         def flatten(self):
+            # ret = []
+            # measure = 0
+            # while measure <= self.last_measure:
+            #     next_repeat = None if len(self.repeats) == 0 else self.repeats[0]
+
+            #     ret += self.notes[measure]
+
+            #     if next_repeat is not None and next_repeat[1] == measure:  # end repeat
+            #         measure = next_repeat[0]
+            #         self.repeats.pop(0)
+            #     else:
+            #         measure += 1
             ret = []
             for measure in range(self.last_measure + 1):
                 ret += [n for n in self.notes[measure]]
