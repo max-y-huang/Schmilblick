@@ -46,7 +46,7 @@ class ParserBase:
             **self.default_objects_to_parse,
         }
         ret = []
-        matched_types = [(k, v) for k, v in to_parse.items() if v['match'](obj)]
+        matched_types = [(k, v) for k, v in to_parse.items() if v['match_fn'](obj)]
         for (obj_type, type_data) in matched_types:
             ret.append((obj, obj_type))
             if 'terminate' in type_data and type_data['terminate'] == True:
@@ -59,16 +59,16 @@ class ParserBase:
 
     default_objects_to_parse = {
         'divisions': {
-            'match': lambda x: x.tag == 'divisions',
+            'match_fn': lambda x: x.tag == 'divisions',
         },
         'tempo': {
-            'match': lambda x: x.tag == 'sound' and 'tempo' in x.attrib,
+            'match_fn': lambda x: x.tag == 'sound' and 'tempo' in x.attrib,
         },
         'backup': {
-            'match': lambda x: x.tag == 'backup' and x.find('duration') is not None,
+            'match_fn': lambda x: x.tag == 'backup' and x.find('duration') is not None,
         },
         'duration': {
-            'match': lambda x: x.tag == 'note' and x.find('duration') is not None and x.find('chord') is None,
+            'match_fn': lambda x: x.tag == 'note' and x.find('duration') is not None and x.find('chord') is None,
         },
     }
 
@@ -94,10 +94,10 @@ class PartParser(ParserBase):
         
     objects_to_parse = {
         'score_part': {
-            'match': lambda x: x.tag == 'score-part',
+            'match_fn': lambda x: x.tag == 'score-part',
         },
         'part': {
-            'match': lambda x: x.tag == 'part',
+            'match_fn': lambda x: x.tag == 'part',
         },
     }
 
@@ -152,24 +152,25 @@ class MeasureParser(ParserBase):
             self.measures[measure.number] = measure
         
         def flatten(self):
-            ret = MeasureParser.MeasureList()
-            m = 0
-            m_itr = 0
             repeats = copy.deepcopy(self.repeats)
-            while m_itr < self.num_measures:
+            ret = MeasureParser.MeasureList()
+            itr, counter = 0, 0
+            while itr < self.num_measures:
                 next_repeat = None if len(repeats) == 0 else repeats[0]
 
-                measure_copy = copy.deepcopy(self.measures[m_itr])
-                measure_copy.number = m
+                measure_copy = copy.deepcopy(self.measures[itr])
+                measure_copy.number = counter
                 ret.add(measure_copy)
 
-                if next_repeat is not None and next_repeat[1] == m_itr:  # end repeat
-                    m_itr = next_repeat[0]
+                if next_repeat is not None and next_repeat[1] == itr:  # end repeat
+                    # go to start of repeat
+                    itr = next_repeat[0]
                     repeats.pop(0)
                 else:
-                    m_itr += 1
+                    # go to next measure
+                    itr += 1
                 
-                m += 1
+                counter += 1
             return ret
         
         def get_notes(self):
@@ -208,7 +209,7 @@ class MeasureParser(ParserBase):
     
     objects_to_parse = {
         'measure': {
-            'match': lambda x: x.tag == 'measure',
+            'match_fn': lambda x: x.tag == 'measure',
         },
     }
 
@@ -227,10 +228,11 @@ class RepeatParser(ParserBase):
 
     def pre_parse(self, state):
         state.repeats = []
+        state.stack = []
 
     objects_to_parse = {
         'measure': {
-            'match': lambda x: x.tag == 'measure',
+            'match_fn': lambda x: x.tag == 'measure',
         },
     }
 
@@ -243,11 +245,13 @@ class RepeatParser(ParserBase):
         direction = repeat.get('direction')
         
         if direction == 'forward':
-            state.repeats.append((number, None))
-        else:
-            if len(state.repeats) == 0:
-                state.repeats.append((0, None))
-            state.repeats[-1] = (state.repeats[-1][0], number)
+            state.stack.append(number)
+        elif direction == 'backward':
+            if len(state.stack) == 0:
+                start = 0
+            else:
+                start = state.stack.pop()
+            state.repeats.append((start, number))
 
 
 class NoteParser(ParserBase):
@@ -301,7 +305,7 @@ class NoteParser(ParserBase):
 
     objects_to_parse = {
         'note': {
-            'match': lambda x: x.tag == 'note',
+            'match_fn': lambda x: x.tag == 'note',
         }
     }
     
