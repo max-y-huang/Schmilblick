@@ -40,7 +40,7 @@ def save_notes_as_midi(dir, notes):
     track, channel = 0, 0
     MyMIDI = midiutil.MIDIFile(1, deinterleave=False)
     MyMIDI.addTempo(track, channel, 60)  # 60 bpm = 1 beat per second
-    for note in notes.flatten():
+    for note in notes.get_notes():
         MyMIDI.addNote(track, channel, note.pitch, note.time, note.duration, 127)
     with open(dir, 'wb') as f:
         MyMIDI.writeFile(f)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
     score = import_mxl_as_xml(in_mxl_dir).getroot()
 
-    parts = mxl_parser.PartParser(score).parse()
+    parts = mxl_parser.PartParser(score).parse().parts
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
