@@ -23,7 +23,7 @@ def import_mxl_as_xml(dir):
     with zipfile.ZipFile(dir, 'r') as z:
         zip_dir = tempfile.mkdtemp()
         z.extractall(zip_dir)
-        xml_fname = next(d for d in os.listdir(zip_dir) if d.endswith('.xml'))  # get first .xml file in zip_dir
+        xml_fname = next(d for d in os.listdir(zip_dir) if d.endswith('.xml') or d.endswith('.musicxml'))  # get first .xml or .musicxml file in zip_dir
         xml_dir = os.path.join(zip_dir, xml_fname)
     # get xml from temporary directory
     with open(xml_dir) as f:

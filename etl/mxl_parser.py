@@ -1,5 +1,7 @@
 import copy
 
+from collections import defaultdict
+
 class ParserBase:
     
     class ParseState:
@@ -47,7 +49,7 @@ class ParserBase:
         }
         ret = []
         matched_types = [(k, v) for k, v in to_parse.items() if v['match_fn'](obj)]
-        for (obj_type, type_data) in matched_types:
+        for obj_type, type_data in matched_types:
             ret.append((obj, obj_type))
             if 'terminate' in type_data and type_data['terminate'] == True:
                 return ret
@@ -137,13 +139,13 @@ class MeasureParser(ParserBase):
         def __init__(self):
             self.num_measures = 0
             self.measures = {}
-            self.repeats = []
+            self.jumps = []
         
         def __getitem__(self, key):
             return self.measures[key]
 
-        def set_repeats(self, repeats):
-            self.repeats = repeats
+        def set_jumps(self, jumps):
+            self.jumps = jumps
         
         def add(self, measure):
             if measure.number + 1 > self.num_measures:
@@ -152,22 +154,20 @@ class MeasureParser(ParserBase):
             self.measures[measure.number] = measure
         
         def flatten(self):
-            repeats = copy.deepcopy(self.repeats)
+            jumps = copy.deepcopy(self.jumps)
             ret = MeasureParser.MeasureList()
             itr, counter = 0, 0
             while itr < self.num_measures:
-                next_repeat = None if len(repeats) == 0 else repeats[0]
+                next_jump = None if len(jumps) == 0 else jumps[0]
 
                 measure_copy = copy.deepcopy(self.measures[itr])
                 measure_copy.number = counter
                 ret.add(measure_copy)
 
-                if next_repeat is not None and next_repeat[1] == itr:  # end repeat
-                    # go to start of repeat
-                    itr = next_repeat[0]
-                    repeats.pop(0)
+                if next_jump is not None and next_jump.src == itr:  # handle jump
+                    itr = next_jump.dst
+                    jumps.pop(0)
                 else:
-                    # go to next measure
                     itr += 1
                 
                 counter += 1
@@ -186,7 +186,7 @@ class MeasureParser(ParserBase):
             flattened_measures = self.flatten()
             for m in range(flattened_measures.num_measures):
                 measure = flattened_measures[m]
-                ret.append({ 'time': measure.time, 'notes': [ n.as_json() for n in measure.notes ] })
+                ret.append({ 'time': measure.time, 'duration': measure.duration, 'notes': [ n.as_json() for n in measure.notes ] })
             return ret
 
     def pre_parse(self, state):
@@ -226,9 +226,28 @@ class MeasureParser(ParserBase):
 class RepeatParser(ParserBase):
     # NOTE: assumes no nested repeats
 
+    class Jump:
+        def __init__(self, src, dst):
+            self.src = src
+            self.dst = dst
+
     def pre_parse(self, state):
         state.repeats = []
-        state.stack = []
+        state.repeat_start_itr = 0
+        state.voltas = defaultdict(lambda: dict())  # self.voltas[repeat start measure][nth time through] = volta start measure
+        state.volta_itr = None
+        state.jumps = []
+    
+    def parse(self):
+        # FIXME: assumes that the earliest volta (for a repeat) is for the 1st time through
+        state = super().parse()
+        # add repeat jumps
+        for start, end, volta_num in state.repeats:
+            state.jumps.append(RepeatParser.Jump(end, start))  # jump to repeat start
+            if volta_num is not None:
+                voltas = state.voltas[start]
+                state.jumps.append(RepeatParser.Jump(voltas[1] - 1, voltas[volta_num + 1]))  # jump to correct volta
+        return state
 
     objects_to_parse = {
         'measure': {
@@ -237,21 +256,23 @@ class RepeatParser(ParserBase):
     }
 
     def handle_measure(self, state, obj):
-        repeat = obj.find('.//repeat')
-        if repeat is None:
-            return
-        
         number = int(obj.get('number')) - 1
-        direction = repeat.get('direction')
-        
-        if direction == 'forward':
-            state.stack.append(number)
-        elif direction == 'backward':
-            if len(state.stack) == 0:
-                start = 0
-            else:
-                start = state.stack.pop()
-            state.repeats.append((start, number))
+        start_repeat = obj.find('.//repeat[@direction="forward"]')
+        end_repeat = obj.find('.//repeat[@direction="backward"]')
+        ending = obj.find('.//ending[@type="start"]')
+        if start_repeat is not None:
+            # set current repeat
+            state.repeat_start_itr = number
+            state.volta_itr = None
+        if end_repeat is not None:
+            # store repeat information
+            state.repeats.append((state.repeat_start_itr, number, state.volta_itr))
+        if ending is not None:
+            # store volta information
+            volta_num = int(ending.get('number'))
+            state.voltas[state.repeat_start_itr][volta_num] = number
+            state.volta_itr = volta_num
+            
 
 
 class NoteParser(ParserBase):
@@ -279,7 +300,7 @@ class NoteParser(ParserBase):
         parsed_measures = MeasureParser(self.data).parse()
         self.data = parsed_measures.src
         self.measures = parsed_measures.measures
-        self.measures.set_repeats(RepeatParser(self.data).parse().repeats)
+        self.measures.set_jumps(RepeatParser(self.data).parse().jumps)
         # parse notes
         parsed = super().parse()
         notes = parsed.notes
