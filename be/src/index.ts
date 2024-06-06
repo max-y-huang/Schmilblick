@@ -2,10 +2,11 @@
 import express, { Express, Request, Response } from "express";
 import multer, { Multer } from "multer";
 import dotenv from "dotenv";
-import { OpenSheetMusicDisplay, MXLHelper } from "opensheetmusicdisplay";
+import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 import jsdom from "jsdom";
 import fs from "node:fs/promises";
 import cors from "cors";
+import { body, validationResult } from "express-validator";
 
 dotenv.config();
 
@@ -20,7 +21,26 @@ app.use(express.static('musicxml_uploads'));
 app.post(
   "/musicxml-to-svg",
   upload.single("musicxml"),
+  [body('pageWidth').isFloat({ gt: 0 }), body('pageHeight').optional().isFloat({ min: 0 })],
   async (req: Request, res: Response) => {
+    const result = validationResult(req);
+
+    if (!result.isEmpty()) {
+      return res.status(400).send("Invalid width or height");
+    }
+
+    const { pageWidth, pageHeight } = req.body;
+
+    const width = Number.parseInt(pageWidth, 10) || 0;
+    let height = Number.parseInt(pageHeight, 10) || 0;
+
+    let pageFormat = "Endless";
+    if (height == 0) {
+      height = 32767;
+    } else {
+      pageFormat = `${width}x${height}`;
+    }
+
     const uploadedFile = req.file;
     if (uploadedFile) {
       const dom = new jsdom.JSDOM("<!DOCTYPE html></html>");
@@ -73,9 +93,6 @@ app.post(
       div.id = "browserlessDiv";
       document.body.appendChild(div);
 
-      const width = 1440;
-      const height = 32767;
-
       //@ts-ignore
       div.width = width;
       //@ts-ignore
@@ -112,7 +129,7 @@ app.post(
         autoResize: false,
         backend: "svg",
         pageBackgroundColor: "#FFFFFF",
-        pageFormat: "Endless",
+        pageFormat,
       });
 
       const path = uploadedFile.path;
@@ -121,7 +138,9 @@ app.post(
         .toString()
         .replace(/[^\x20-\x7E]/g, "")
         .trim();
-      
+
+      await fs.unlink(path);
+
       await osmd.load(musicXMLString);
       osmd.render();
 
@@ -138,9 +157,9 @@ app.post(
         markupStrings.push(svgElement.outerHTML);
       }
 
-      await fs.writeFile("musicxml_uploads/music.svg", markupStrings.join(""));
-      await fs.unlink(path);
-      res.status(200).send({ path: "music.svg" });
+      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(`musicxml_uploads/music_${idx}.svg`, string));
+      await Promise.all(writeToFiles);
+      res.status(200).send({ files: markupStrings.map((_, idx) => `music_${idx}.svg`)});
     } else {
       res.status(400).send("No file uploaded");
     }
