@@ -53,16 +53,12 @@ app.post(
       global.XMLHttpRequest = window.XMLHttpRequest;
       global.DOMParser = window.DOMParser;
       global.Node = window.Node;
-      // @ts-ignore
-      global.Canvas = window.Canvas;
-      global.Blob = Blob;
 
       const { default: headless_gl } = await import("gl");
       const oldCreateElement = document.createElement.bind(document);
-      // @ts-ignore
-      document.createElement = function (tagName, options) {
+      const newCreateElement = (tagName: Parameters<typeof document.createElement>[0], options: ElementCreationOptions) => {
         if (tagName.toLowerCase() === "canvas") {
-          const canvas = oldCreateElement(tagName, options);
+          const canvas = oldCreateElement("canvas", options);
           const oldGetContext = canvas.getContext.bind(canvas);
           // @ts-ignore
           canvas.getContext = function (contextType, contextAttributes) {
@@ -88,20 +84,16 @@ app.post(
           return oldCreateElement(tagName, options);
         }
       };
+      document.createElement = newCreateElement;
 
       const div = document.createElement("div");
       div.id = "browserlessDiv";
       document.body.appendChild(div);
 
-      //@ts-ignore
-      div.width = width;
-      //@ts-ignore
-      div.height = height;
       div.setAttribute("width", width.toString());
       div.setAttribute("height", height.toString());
       div.setAttribute("offsetWidth", width.toString());
 
-      // hack: set offsetWidth reliably
       Object.defineProperties(window.HTMLElement.prototype, {
         offsetLeft: {
           get: function () {
