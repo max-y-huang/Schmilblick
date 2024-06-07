@@ -1,4 +1,5 @@
 import copy
+import re
 
 from collections import defaultdict
 
@@ -134,6 +135,9 @@ class MeasureParser(ParserBase):
         def add(self, note):
             note.measure = self
             self.notes.append(note)
+        
+        def to_json(self):
+            return [ n.to_json() for n in self.notes ]
     
     class MeasureList:
         def __init__(self):
@@ -181,12 +185,12 @@ class MeasureParser(ParserBase):
                 ret += measure.notes
             return ret
         
-        def as_json(self):
+        def to_json(self):
             ret = []
             flattened_measures = self.flatten()
             for m in range(flattened_measures.num_measures):
                 measure = flattened_measures[m]
-                ret.append({ 'time': measure.time, 'duration': measure.duration, 'notes': [ n.as_json() for n in measure.notes ] })
+                ret += measure.to_json()
             return ret
 
     def pre_parse(self, state):
@@ -223,6 +227,7 @@ class MeasureParser(ParserBase):
         for note in obj.findall('note'):
             note.attrib['measure'] = number
 
+
 class RepeatParser(ParserBase):
     # NOTE: assumes no nested repeats
 
@@ -240,13 +245,14 @@ class RepeatParser(ParserBase):
     
     def parse(self):
         # FIXME: assumes that the earliest volta (for a repeat) is for the 1st time through
-        state = super().parse()
-        # add repeat jumps
-        for start, end, volta_num in state.repeats:
+        def add_repeat_jumps(repeat):
+            start, end, volta_num = repeat
             state.jumps.append(RepeatParser.Jump(end, start))  # jump to repeat start
             if volta_num is not None:
                 voltas = state.voltas[start]
                 state.jumps.append(RepeatParser.Jump(voltas[1] - 1, voltas[volta_num + 1]))  # jump to correct volta
+        
+        state = super().parse()
         return state
 
     objects_to_parse = {
@@ -260,19 +266,83 @@ class RepeatParser(ParserBase):
         start_repeat = obj.find('.//repeat[@direction="forward"]')
         end_repeat = obj.find('.//repeat[@direction="backward"]')
         ending = obj.find('.//ending[@type="start"]')
+        # set current repeat
         if start_repeat is not None:
-            # set current repeat
             state.repeat_start_itr = number
             state.volta_itr = None
+        # store repeat information
         if end_repeat is not None:
-            # store repeat information
             state.repeats.append((state.repeat_start_itr, number, state.volta_itr))
+        # store volta information
         if ending is not None:
-            # store volta information
             volta_num = int(ending.get('number'))
             state.voltas[state.repeat_start_itr][volta_num] = number
             state.volta_itr = volta_num
-            
+
+
+class DSAlCodaParser(ParserBase):
+
+    def pre_parse(self, state):
+        state.ds_al_codas = []
+        state.segnos = defaultdict(lambda: None)           # self.segnos[symbol] = measure
+        state.dalsegnos = defaultdict(lambda: None)        # self.dalsegnos[measure] = (symbol, coda text)
+        state.tocodas = defaultdict(lambda: None)          # self.tocodas[symbol] = measure
+        state.tocodas_by_text = defaultdict(lambda: None)  # self.tocodas_by_text[text] = symbol
+        state.codas = defaultdict(lambda: None)            # self.codas[symbol] = measure
+
+        state.segnos['_capo'] = 0
+        state.tocodas_by_text['']
+    
+    def parse(self):
+        state = super().parse()
+        for key, val in state.dalsegnos.items():
+            coda_symbol = state.tocodas_by_text[val[1]]
+            segno_src = key
+            segno_dst = state.segnos[val[0]]
+            coda_src = state.tocodas[coda_symbol]
+            coda_dst = state.codas[coda_symbol]
+            state.ds_al_codas.append((segno_src, segno_dst, coda_src, coda_dst))
+        return state
+
+    objects_to_parse = {
+        'measure': {
+            'match_fn': lambda x: x.tag == 'measure',
+        },
+    }
+
+    def handle_measure(self, state, obj):
+        def extract_coda_text(text, regexp):
+            split = re.split(regexp, text, flags=re.IGNORECASE)
+            if len(split) == 1:
+                return None
+            return split[-1].strip().lower()
+        
+        number = int(obj.get('number')) - 1
+        segno = obj.find('.//sound[@segno]')
+        dalsegno = obj.find('.//sound[@dalsegno]')
+        dalsegno_text = obj.find('.//sound[@dalsegno]..//words')
+        coda = obj.find('.//sound[@coda]')
+        tocoda = obj.find('.//sound[@tocoda]')
+        tocoda_text = obj.find('.//sound[@tocoda]..//words')
+        # store segno information
+        if segno is not None:
+            symbol = segno.get('segno')
+            state.segnos[symbol] = number
+        # store dalsegno information
+        if dalsegno is not None:
+            symbol = dalsegno.get('dalsegno')
+            text = extract_coda_text(dalsegno_text.text, "(^|\s)al\s")
+            state.dalsegnos[number] = (symbol, text)
+        # store coda information
+        if coda is not None:
+            symbol = coda.get('coda')
+            state.codas[symbol] = number
+        # store tocoda information
+        if tocoda is not None:
+            symbol = tocoda.get('tocoda')
+            text = extract_coda_text(tocoda_text.text, "(^|\s)to\s")
+            state.tocodas[symbol] = number
+            state.tocodas_by_text[text] = symbol
 
 
 class NoteParser(ParserBase):
@@ -288,8 +358,8 @@ class NoteParser(ParserBase):
         def time(self):
             return self.measure.time + self.time_offset
         
-        def as_json(self):
-            return { 'time': self.time, 'time_offset': self.time_offset, 'duration': self.duration, 'pitch': self.pitch }
+        def to_json(self):
+            return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
     
     def pre_parse(self, state):
         state.notes = []

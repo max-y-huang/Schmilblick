@@ -33,7 +33,7 @@ def import_mxl_as_xml(dir):
 
 def save_notes_as_json(dir, notes):
     with open(dir, 'w') as f:
-        print(json.dumps(notes.as_json()), file=f)
+        print(json.dumps(notes.to_json()), file=f)
 
 
 def save_notes_as_midi(dir, notes):
