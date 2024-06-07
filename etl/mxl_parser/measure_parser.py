@@ -4,6 +4,11 @@ from mxl_parser.parser_base import ParserBase
 
 class MeasureParser(ParserBase):
 
+    class Jump:
+        def __init__(self, src, dst):
+            self.src = src
+            self.dst = dst
+
     class Measure:
         def __init__(self, number, duration):
             self.measure_list = None
