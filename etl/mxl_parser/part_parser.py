@@ -1,4 +1,4 @@
-from parser_base import ParserBase
+from mxl_parser.parser_base import ParserBase
 
 class PartParser(ParserBase):
 

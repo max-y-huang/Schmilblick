@@ -1,8 +1,8 @@
-from part_parser import PartParser
-from measure_parser import MeasureParser
-from repeat_parser import RepeatParser
-from ds_al_coda_parser import DSAlCodaParser
-from note_parser import NoteParser
+from mxl_parser.part_parser import PartParser
+from mxl_parser.measure_parser import MeasureParser
+from mxl_parser.repeat_parser import RepeatParser
+from mxl_parser.ds_al_coda_parser import DSAlCodaParser
+from mxl_parser.note_parser import NoteParser
 
 class MXLParser():
 

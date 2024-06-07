@@ -1,6 +1,6 @@
 import copy
 
-from parser_base import ParserBase
+from mxl_parser.parser_base import ParserBase
 
 class MeasureParser(ParserBase):
 

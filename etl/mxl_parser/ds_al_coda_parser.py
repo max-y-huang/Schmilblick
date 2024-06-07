@@ -2,7 +2,7 @@ import re
 
 from collections import defaultdict
 
-from parser_base import ParserBase
+from mxl_parser.parser_base import ParserBase
 
 class DSAlCodaParser(ParserBase):
 

@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from parser_base import ParserBase
+from mxl_parser.parser_base import ParserBase
 
 class RepeatParser(ParserBase):
     # NOTE: assumes no nested repeats
