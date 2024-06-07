@@ -93,7 +93,12 @@ class ParserBase:
 class PartParser(ParserBase):
 
     def pre_parse(self, state):
-        state.parts = []
+        state.parts = {}
+    
+    def parse(self):
+        state = super().parse()
+        state.parts = list(state.parts.values())
+        return state
         
     objects_to_parse = {
         'score_part': {
@@ -107,20 +112,18 @@ class PartParser(ParserBase):
     def handle_score_part(self, state, obj):
         part_id = obj.get('id')
         part_name = obj.find('part-name').text
-        state.parts.append({ 'id': part_id, 'name': part_name })
+        state.parts[part_id] = { 'id': part_id, 'name': part_name }
     
     def handle_part(self, state, obj):
         part_id = obj.get('id')
-        for part in state.parts:
-            if part['id'] == part_id:
-                part['obj'] = obj
+        state.parts[part_id]['obj'] = obj
 
 
 class MeasureParser(ParserBase):
 
     class Measure:
         def __init__(self, number, duration):
-            self.parent_list = None
+            self.measure_list = None
             self.number = number
             self.duration = duration
             self.notes = []
@@ -129,7 +132,7 @@ class MeasureParser(ParserBase):
         def time(self):
             ret = 0
             for m in range(self.number):
-                ret += self.parent_list[m].duration
+                ret += self.measure_list[m].duration
             return ret
         
         def add(self, note):
@@ -142,11 +145,11 @@ class MeasureParser(ParserBase):
     class MeasureList:
         def __init__(self):
             self.num_measures = 0
-            self.measures = {}
+            self.items = {}
             self.jumps = []
         
         def __getitem__(self, key):
-            return self.measures[key]
+            return self.items[key]
 
         def set_jumps(self, jumps):
             self.jumps = jumps
@@ -154,8 +157,8 @@ class MeasureParser(ParserBase):
         def add(self, measure):
             if measure.number + 1 > self.num_measures:
                 self.num_measures = measure.number + 1
-            measure.parent_list = self
-            self.measures[measure.number] = measure
+            measure.measure_list = self
+            self.items[measure.number] = measure
         
         def flatten(self):
             jumps = copy.deepcopy(self.jumps)
@@ -164,7 +167,7 @@ class MeasureParser(ParserBase):
             while itr < self.num_measures:
                 next_jump = None if len(jumps) == 0 else jumps[0]
 
-                measure_copy = copy.deepcopy(self.measures[itr])
+                measure_copy = copy.deepcopy(self.items[itr])
                 measure_copy.number = counter
                 ret.add(measure_copy)
 
@@ -200,14 +203,14 @@ class MeasureParser(ParserBase):
     
     def parse(self):
         state = super().parse()
-        state.measures = MeasureParser.MeasureList()
+        state.measure_list = MeasureParser.MeasureList()
         for m in range(state.num_measures):
             time = state.measure_times[m]
             next_time = state.time
             if m + 1 < state.num_measures:
                 next_time = state.measure_times[m + 1]
             duration = next_time - time
-            state.measures.add(MeasureParser.Measure(m, duration))
+            state.measure_list.add(MeasureParser.Measure(m, duration))
         return state
             
     
@@ -285,20 +288,18 @@ class DSAlCodaParser(ParserBase):
     def pre_parse(self, state):
         state.ds_al_codas = []
         state.segnos = defaultdict(lambda: None)           # self.segnos[symbol] = measure
-        state.dalsegnos = defaultdict(lambda: None)        # self.dalsegnos[measure] = (symbol, coda text)
+        state.dalsegnos = defaultdict(lambda: None)        # self.dalsegnos[measure] = (segno symbol, coda text)
         state.tocodas = defaultdict(lambda: None)          # self.tocodas[symbol] = measure
         state.tocodas_by_text = defaultdict(lambda: None)  # self.tocodas_by_text[text] = symbol
         state.codas = defaultdict(lambda: None)            # self.codas[symbol] = measure
 
-        state.segnos['_capo'] = 0
-        state.tocodas_by_text['']
+        state.segnos['_capo'] = 0  # reduce dacapo to dalsegno
     
     def parse(self):
         state = super().parse()
-        for key, val in state.dalsegnos.items():
-            coda_symbol = state.tocodas_by_text[val[1]]
-            segno_src = key
-            segno_dst = state.segnos[val[0]]
+        for segno_src, (segno_symbol, coda_text) in state.dalsegnos.items():
+            coda_symbol = state.tocodas_by_text[coda_text]
+            segno_dst = state.segnos[segno_symbol]
             coda_src = state.tocodas[coda_symbol]
             coda_dst = state.codas[coda_symbol]
             state.ds_al_codas.append((segno_src, segno_dst, coda_src, coda_dst))
@@ -331,8 +332,8 @@ class DSAlCodaParser(ParserBase):
         # store dalsegno information
         if dalsegno is not None:
             symbol = dalsegno.get('dalsegno')
-            text = extract_coda_text(dalsegno_text.text, "(^|\s)al\s")
-            state.dalsegnos[number] = (symbol, text)
+            coda_text = extract_coda_text(dalsegno_text.text, "(^|\s)al\s")
+            state.dalsegnos[number] = (symbol, coda_text)
         # store coda information
         if coda is not None:
             symbol = coda.get('coda')
@@ -361,17 +362,15 @@ class NoteParser(ParserBase):
         def to_json(self):
             return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
     
+    def __init__(self, data, measure_list):
+        super().__init__(data)
+        self.measure_list = measure_list
+    
     def pre_parse(self, state):
         state.notes = []
-        state.measures = self.measures
+        state.measure_list = self.measure_list
     
     def parse(self):
-        # parse measures
-        parsed_measures = MeasureParser(self.data).parse()
-        self.data = parsed_measures.src
-        self.measures = parsed_measures.measures
-        self.measures.set_jumps(RepeatParser(self.data).parse().jumps)
-        # parse notes
         parsed = super().parse()
         notes = parsed.notes
         # merge tied notes
@@ -382,7 +381,7 @@ class NoteParser(ParserBase):
                 measure.notes.remove(note)
             else:
                 last_note_by_pitch[note.pitch] = note
-        return parsed.measures
+        return parsed.measure_list
 
     def pitch_xml_to_int(self, obj):
         _STEP_OFFSET = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 }
@@ -402,7 +401,7 @@ class NoteParser(ParserBase):
     
     def handle_note(self, state, obj):
         measure_num = obj.get('measure')
-        measure = state.measures[measure_num]
+        measure = state.measure_list[measure_num]
         # get note information
         is_grace_note = obj.find('grace') is not None
         is_chord = obj.find('chord') is not None
@@ -421,3 +420,26 @@ class NoteParser(ParserBase):
             note = NoteParser.Note(time_offset, duration, pitch)
             measure.add(note)
             state.notes.append((note, measure, is_tied))
+
+
+class MXLParser():
+
+    def __init__(self, data):
+        self.data = data
+    
+    def parse(self):
+
+        p_parts = PartParser(self.data).parse()
+        for part in p_parts.parts:
+            p_measures = MeasureParser(part['obj']).parse()
+
+            p_repeats = RepeatParser(part['obj']).parse()
+            print(p_repeats.repeats)
+
+            p_ds_al_codas = DSAlCodaParser(part['obj']).parse()
+            print(p_ds_al_codas.ds_al_codas)
+
+            p_notes = NoteParser(p_measures.src, p_measures.measure_list).parse()
+            part['obj'] = p_notes
+
+        return p_parts.parts

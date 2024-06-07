@@ -76,13 +76,12 @@ if __name__ == '__main__':
     in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
     score = import_mxl_as_xml(in_mxl_dir).getroot()
 
-    parts = mxl_parser.PartParser(score).parse().parts
+    parts = mxl_parser.MXLParser(score).parse()
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
-        notes = mxl_parser.NoteParser(part['obj']).parse()
-        save_notes_as_json(out_data_dir, notes)
-        save_notes_as_midi(out_midi_dir, notes)
+        save_notes_as_json(out_data_dir, part['obj'])
+        save_notes_as_midi(out_midi_dir, part['obj'])
     
     if args.preview:
         prompt_preview(score_name, parts)
