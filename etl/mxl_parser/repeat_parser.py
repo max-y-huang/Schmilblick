@@ -16,18 +16,6 @@ class RepeatParser(ParserBase):
         state.voltas = defaultdict(lambda: dict())  # self.voltas[repeat start measure][nth time through] = volta start measure
         state.volta_itr = None
         state.jumps = []
-    
-    def parse(self):
-        # FIXME: assumes that the earliest volta (for a repeat) is for the 1st time through
-        def add_repeat_jumps(repeat):
-            start, end, volta_num = repeat
-            state.jumps.append(RepeatParser.Jump(end, start))  # jump to repeat start
-            if volta_num is not None:
-                voltas = state.voltas[start]
-                state.jumps.append(RepeatParser.Jump(voltas[1] - 1, voltas[volta_num + 1]))  # jump to correct volta
-        
-        state = super().parse()
-        return state
 
     objects_to_parse = {
         'measure': {

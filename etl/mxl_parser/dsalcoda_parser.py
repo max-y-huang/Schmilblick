@@ -7,7 +7,7 @@ from mxl_parser.parser_base import ParserBase
 class DSAlCodaParser(ParserBase):
 
     def pre_parse(self, state):
-        state.ds_al_codas = []
+        state.dsalcodas = []
         state.segnos = defaultdict(lambda: None)           # self.segnos[symbol] = measure
         state.dalsegnos = defaultdict(lambda: None)        # self.dalsegnos[measure] = (segno symbol, coda text)
         state.tocodas = defaultdict(lambda: None)          # self.tocodas[symbol] = measure
@@ -23,7 +23,7 @@ class DSAlCodaParser(ParserBase):
             segno_dst = state.segnos[segno_symbol]
             coda_src = state.tocodas[coda_symbol]
             coda_dst = state.codas[coda_symbol]
-            state.ds_al_codas.append((segno_src, segno_dst, coda_src, coda_dst))
+            state.dsalcodas.append((segno_src, segno_dst, coda_src, coda_dst))
         return state
 
     objects_to_parse = {
