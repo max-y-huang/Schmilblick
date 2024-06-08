@@ -51,9 +51,8 @@ class DSAlCodaParser(ParserBase):
             coda_text = extract_coda_text(text, "(^|\s)al\s")
             state.dalsegnos[number] = (symbol, coda_text)
         
-        def handle_tocoda(symbol, text, extact_text=True):
-            if extact_text:
-                text = extract_coda_text(text, "(^|\s)to\s")
+        def handle_tocoda(symbol, text):
+            text = extract_coda_text(text, "(^|\s)to\s")
             state.tocodas[symbol] = number
             state.tocodas_by_text[text] = symbol
         
@@ -86,4 +85,4 @@ class DSAlCodaParser(ParserBase):
             handle_tocoda(tocoda.get('tocoda'), tocoda_text.text)
         # store fine information
         if fine is not None:
-            handle_tocoda('_fine', 'fine', extact_text=False)
+            handle_tocoda('_fine', 'to fine')
