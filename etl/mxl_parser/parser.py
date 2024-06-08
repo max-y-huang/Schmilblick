@@ -50,6 +50,7 @@ class MXLParser():
                 for m in range(dsalcoda.segno_dst, itr + 1):
                     if len(voltas[m].keys()) > 0:
                         add_volta_jump(m, -1)
-                jumps.append(MeasureParser.Jump(dsalcoda.coda_src, dsalcoda.coda_dst))  # jump to coda
+                if dsalcoda.coda_dst is not None:
+                    jumps.append(MeasureParser.Jump(dsalcoda.coda_src, dsalcoda.coda_dst))  # jump to coda
         
         return jumps
