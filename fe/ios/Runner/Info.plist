@@ -26,10 +26,6 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Need camera access for uploading images</string>
-	<key>NSLocationUsageDescription</key>
-	<string>Need location access for updating nearby friends</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Please enable microphone to capture data</string>
 	<key>NSDocumentsFolderUsageDescription</key>
