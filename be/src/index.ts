@@ -7,6 +7,7 @@ import jsdom from "jsdom";
 import fs from "node:fs/promises";
 import cors from "cors";
 import { body, validationResult } from "express-validator";
+import headless_gl from "gl";
 
 dotenv.config();
 
@@ -54,7 +55,6 @@ app.post(
       global.DOMParser = window.DOMParser;
       global.Node = window.Node;
 
-      const { default: headless_gl } = await import("gl");
       const oldCreateElement = document.createElement.bind(document);
       const newCreateElement = (tagName: Parameters<typeof document.createElement>[0], options: ElementCreationOptions) => {
         if (tagName.toLowerCase() === "canvas") {
@@ -138,12 +138,7 @@ app.post(
 
       let markupStrings = [];
 
-      for (let pageNumber = 1; pageNumber < Number.POSITIVE_INFINITY; pageNumber++) {
-        const svgElement = document.getElementById("osmdSvgPage" + pageNumber);
-        if (!svgElement) {
-          break;
-        }
-        
+      for (let pageNumber = 1, svgElement; svgElement = document.getElementById("osmdSvgPage" + pageNumber); pageNumber++) {
         // The important xmlns attribute is not serialized unless we set it here
         svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
         markupStrings.push(svgElement.outerHTML);
