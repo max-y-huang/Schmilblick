@@ -8,6 +8,8 @@ import fs from "node:fs/promises";
 import cors from "cors";
 import { body, validationResult } from "express-validator";
 import headless_gl from "gl";
+// @ts-ignore
+import zip from "express-easy-zip";
 
 dotenv.config();
 
@@ -16,8 +18,7 @@ const upload: Multer = multer({ dest: "musicxml_uploads" });
 const port = process.env.PORT;
 
 app.use(cors());
-
-app.use(express.static('musicxml_uploads'));
+app.use(zip());
 
 app.post(
   "/musicxml-to-svg",
@@ -124,8 +125,8 @@ app.post(
         pageFormat,
       });
 
-      const path = uploadedFile.path;
-      const musicXMLFile = await fs.readFile(path);
+      const uploadedPath = uploadedFile.path;
+      const musicXMLFile = await fs.readFile(uploadedPath);
 
       let musicXMLString;
       if (uploadedFile.originalname.endsWith(".mxl")) {
@@ -138,7 +139,7 @@ app.post(
           .trim();
       }
 
-      await fs.unlink(path);
+      await fs.unlink(uploadedPath);
 
       await osmd.load(musicXMLString);
       osmd.render();
@@ -151,9 +152,23 @@ app.post(
         markupStrings.push(svgElement.outerHTML);
       }
 
-      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(`musicxml_uploads/music_${idx}.svg`, string));
+      const fileNames = markupStrings.map((_, idx) => {
+        const filePath = `musicxml_uploads/music_${idx}.svg`;
+        const name = `music_${idx}.svg`;
+
+        return { path: filePath, name };
+      });
+
+      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(fileNames[idx].path, string));
       await Promise.all(writeToFiles);
-      res.status(200).send({ files: markupStrings.map((_, idx) => `music_${idx}.svg`)});
+      
+      // @ts-ignore
+      await res.zip({
+        files: fileNames,
+        filename: 'music-xml-to-svgs.zip'
+      });
+
+      await Promise.all(fileNames.map(({ path }) => fs.unlink(path)));
     } else {
       res.status(400).send("No file uploaded");
     }
