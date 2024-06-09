@@ -2,7 +2,7 @@
 import express, { Express, Request, Response } from "express";
 import multer, { Multer } from "multer";
 import dotenv from "dotenv";
-import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
+import { OpenSheetMusicDisplay, MXLHelper } from "opensheetmusicdisplay";
 import jsdom from "jsdom";
 import fs from "node:fs/promises";
 import cors from "cors";
@@ -125,11 +125,18 @@ app.post(
       });
 
       const path = uploadedFile.path;
-      const musicXMLFile = await fs.readFile(path)
-      const musicXMLString = musicXMLFile
-        .toString()
-        .replace(/[^\x20-\x7E]/g, "")
-        .trim();
+      const musicXMLFile = await fs.readFile(path);
+
+      let musicXMLString;
+      if (uploadedFile.originalname.endsWith(".mxl")) {
+        // @ts-ignore
+        musicXMLString = await MXLHelper.MXLtoXMLstring(musicXMLFile);
+      } else {
+        musicXMLString = musicXMLFile
+          .toString()
+          .replace(/[^\x20-\x7E]/g, "")
+          .trim();
+      }
 
       await fs.unlink(path);
 
