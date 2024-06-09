@@ -77,12 +77,7 @@ class MeasureParser(ParserBase):
             return ret
         
         def to_json(self):
-            ret = []
-            flattened_measures = self.flatten()
-            for m in range(flattened_measures.num_measures):
-                measure = flattened_measures[m]
-                ret += measure.to_json()
-            return ret
+            return [ n.to_json() for n in self.get_notes() ]
 
     def pre_parse(self, state):
         state.src = self.data
