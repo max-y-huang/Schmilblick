@@ -30,14 +30,10 @@
 	<string>Need camera access for uploading images</string>
 	<key>NSLocationUsageDescription</key>
 	<string>Need location access for updating nearby friends</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app will use your location to show features near you.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Please enable microphone to capture data</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>We need access to the documents folder to save recordings.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Need photo library access for saving and uploading images</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
