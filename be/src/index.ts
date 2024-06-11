@@ -98,7 +98,7 @@ app.post(
       Object.defineProperties(window.HTMLElement.prototype, {
         offsetLeft: {
           get: function () {
-            return parseFloat(window.getComputedStyle(this).marginTop) || 0;
+            return parseFloat(window.getComputedStyle(this).marginLeft) || 0;
           },
         },
         offsetTop: {
