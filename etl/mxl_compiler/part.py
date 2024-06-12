@@ -1,16 +1,17 @@
-from mxl_parser.parser_base import ParserBase
+from mxl_compiler.base import BaseHandler
 
-class PartParser(ParserBase):
 
-    def pre_parse(self, state):
+class PartHandler(BaseHandler):
+
+    def pre_run(self, state):
         state.parts = {}
     
-    def parse(self):
-        state = super().parse()
+    def run(self):
+        state = super().run()
         state.parts = list(state.parts.values())
         return state
         
-    objects_to_parse = {
+    targets = {
         'score_part': {
             'match_fn': lambda x: x.tag == 'score-part',
         },

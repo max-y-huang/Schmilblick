@@ -1,6 +1,5 @@
-class ParserBase:
-    
-    class ParseState:
+class BaseHandler:
+    class State:
         @property
         def time(self):
             return self._time
@@ -28,34 +27,34 @@ class ParserBase:
     def __init__(self, data):
         self.data = data
     
-    def parse(self):
-        state = ParserBase.ParseState()
-        self.pre_parse(state)
-        for obj, obj_type in self.get_objects(self.data):
+    def run(self):
+        state = BaseHandler.State()
+        self.pre_run(state)
+        for obj, obj_type in self.get_targets(self.data):
             eval(f'self.handle_{obj_type}')(state, obj)
         return state
 
-    def pre_parse(self, state):
+    def pre_run(self, state):
         pass
 
-    def get_objects(self, obj):
-        to_parse = {
-            **self.objects_to_parse,
-            **self.default_objects_to_parse,
+    def get_targets(self, obj):
+        targets = {
+            **self.targets,
+            **self.default_targets,
         }
         ret = []
-        matched_types = [(k, v) for k, v in to_parse.items() if v['match_fn'](obj)]
+        matched_types = [(k, v) for k, v in targets.items() if v['match_fn'](obj)]
         for obj_type, type_data in matched_types:
             ret.append((obj, obj_type))
             if 'terminate' in type_data and type_data['terminate'] == True:
                 return ret
         for child in obj:
-            ret += self.get_objects(child)
+            ret += self.get_targets(child)
         return ret
 
     ################################
 
-    default_objects_to_parse = {
+    default_targets = {
         'divisions': {
             'match_fn': lambda x: x.tag == 'divisions',
         },

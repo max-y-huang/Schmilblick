@@ -10,7 +10,7 @@ import tempfile
 
 from xml.etree import ElementTree
 
-from mxl_parser.parser import MXLParser
+from mxl_compiler.compiler import MXLCompiler
 
 
 _IN_MXL_DIR = './in/<SCORE>.mxl'
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
     score = import_mxl_as_xml(in_mxl_dir).getroot()
 
-    parts = MXLParser(score).parse()
+    parts = MXLCompiler(score).compile()
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])

@@ -1,32 +1,34 @@
-from mxl_parser.parser_base import ParserBase
+from mxl_compiler.base import BaseHandler
 
-class NoteParser(ParserBase):
 
-    class Note:
-        def __init__(self, time_offset, duration, pitch):
-            self.measure = None
-            self.time_offset = time_offset
-            self.duration = duration
-            self.pitch = pitch
-        
-        @property
-        def time(self):
-            return self.measure.time + self.time_offset
-        
-        def to_json(self):
-            return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
+class Note:
+    def __init__(self, time_offset, duration, pitch):
+        self.measure = None
+        self.time_offset = time_offset
+        self.duration = duration
+        self.pitch = pitch
+    
+    @property
+    def time(self):
+        return self.measure.time + self.time_offset
+    
+    def to_json(self):
+        return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
+
+
+class NoteHandler(BaseHandler):
     
     def __init__(self, data, measure_list):
         super().__init__(data)
         self.measure_list = measure_list
     
-    def pre_parse(self, state):
+    def pre_run(self, state):
         state.notes = []
         state.measure_list = self.measure_list
     
-    def parse(self):
-        parsed = super().parse()
-        notes = parsed.notes
+    def run(self):
+        state = super().run()
+        notes = state.notes
         # merge tied notes
         last_note_by_pitch = {}
         for note, measure, is_tied in notes:
@@ -35,7 +37,7 @@ class NoteParser(ParserBase):
                 measure.notes.remove(note)
             else:
                 last_note_by_pitch[note.pitch] = note
-        return parsed.measure_list
+        return state.measure_list
 
     def pitch_xml_to_int(self, obj):
         _STEP_OFFSET = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 }
@@ -47,7 +49,7 @@ class NoteParser(ParserBase):
             alter = 0
         return 12 + octave * 12 + _STEP_OFFSET[step] + alter
 
-    objects_to_parse = {
+    targets = {
         'note': {
             'match_fn': lambda x: x.tag == 'note',
         }
@@ -71,6 +73,6 @@ class NoteParser(ParserBase):
         if not is_rest and is_pitched:
             pitch = self.pitch_xml_to_int(obj.find('pitch'))
             time_offset = time - measure.time
-            note = NoteParser.Note(time_offset, duration, pitch)
+            note = Note(time_offset, duration, pitch)
             measure.add(note)
             state.notes.append((note, measure, is_tied))
