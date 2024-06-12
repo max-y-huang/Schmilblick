@@ -2,18 +2,20 @@ import re
 
 from collections import defaultdict
 
-from mxl_parser.parser_base import ParserBase
+from mxl_compiler.base import BaseHandler
 
-class DSAlCodaParser(ParserBase):
 
-    class DSAlCoda:
-        def __init__(self, segno_src, segno_dst, coda_src, coda_dst):
-            self.segno_src = segno_src
-            self.segno_dst = segno_dst
-            self.coda_src = coda_src
-            self.coda_dst = coda_dst
+class DSAlCoda:
+    def __init__(self, segno_src, segno_dst, coda_src, coda_dst):
+        self.segno_src = segno_src
+        self.segno_dst = segno_dst
+        self.coda_src = coda_src
+        self.coda_dst = coda_dst
 
-    def pre_parse(self, state):
+
+class DSAlCodaHandler(BaseHandler):
+
+    def pre_run(self, state):
         state.dsalcodas = []
         state.segnos = defaultdict(lambda: None)           # self.segnos[symbol] = measure
         state.dalsegnos = defaultdict(lambda: None)        # self.dalsegnos[measure] = (segno symbol, coda text)
@@ -24,17 +26,17 @@ class DSAlCodaParser(ParserBase):
         state.segnos['_capo'] = 0            # reduce dacapo to dalsegno
         state.codas['_fine'] = float('inf')  # reduce fine to coda
     
-    def parse(self):
-        state = super().parse()
+    def run(self):
+        state = super().run()
         for segno_src, (segno_symbol, coda_text) in state.dalsegnos.items():
             coda_symbol = state.tocodas_by_text[coda_text]
             segno_dst = state.segnos[segno_symbol]
             coda_src = state.tocodas[coda_symbol]
             coda_dst = state.codas[coda_symbol]
-            state.dsalcodas.append(DSAlCodaParser.DSAlCoda(segno_src, segno_dst, coda_src, coda_dst))
+            state.dsalcodas.append(DSAlCoda(segno_src, segno_dst, coda_src, coda_dst))
         return state
 
-    objects_to_parse = {
+    targets = {
         'measure': {
             'match_fn': lambda x: x.tag == 'measure',
         },
