@@ -2,11 +2,14 @@
 import express, { Express, Request, Response } from "express";
 import multer, { Multer } from "multer";
 import dotenv from "dotenv";
-import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
+import { OpenSheetMusicDisplay, MXLHelper } from "opensheetmusicdisplay";
 import jsdom from "jsdom";
 import fs from "node:fs/promises";
 import cors from "cors";
 import { body, validationResult } from "express-validator";
+import headless_gl from "gl";
+// @ts-ignore
+import zip from "express-easy-zip";
 
 dotenv.config();
 
@@ -15,8 +18,7 @@ const upload: Multer = multer({ dest: "musicxml_uploads" });
 const port = process.env.PORT;
 
 app.use(cors());
-
-app.use(express.static('musicxml_uploads'));
+app.use(zip());
 
 app.post(
   "/musicxml-to-svg",
@@ -54,7 +56,6 @@ app.post(
       global.DOMParser = window.DOMParser;
       global.Node = window.Node;
 
-      const { default: headless_gl } = await import("gl");
       const oldCreateElement = document.createElement.bind(document);
       const newCreateElement = (tagName: Parameters<typeof document.createElement>[0], options: ElementCreationOptions) => {
         if (tagName.toLowerCase() === "canvas") {
@@ -97,7 +98,7 @@ app.post(
       Object.defineProperties(window.HTMLElement.prototype, {
         offsetLeft: {
           get: function () {
-            return parseFloat(window.getComputedStyle(this).marginTop) || 0;
+            return parseFloat(window.getComputedStyle(this).marginLeft) || 0;
           },
         },
         offsetTop: {
@@ -124,34 +125,50 @@ app.post(
         pageFormat,
       });
 
-      const path = uploadedFile.path;
-      const musicXMLFile = await fs.readFile(path)
-      const musicXMLString = musicXMLFile
-        .toString()
-        .replace(/[^\x20-\x7E]/g, "")
-        .trim();
+      const uploadedPath = uploadedFile.path;
+      const musicXMLFile = await fs.readFile(uploadedPath);
 
-      await fs.unlink(path);
+      let musicXMLString;
+      if (uploadedFile.originalname.endsWith(".mxl")) {
+        // @ts-ignore
+        musicXMLString = await MXLHelper.MXLtoXMLstring(musicXMLFile);
+      } else {
+        musicXMLString = musicXMLFile
+          .toString()
+          .replace(/[^\x20-\x7E]/g, "")
+          .trim();
+      }
+
+      await fs.unlink(uploadedPath);
 
       await osmd.load(musicXMLString);
       osmd.render();
 
       let markupStrings = [];
 
-      for (let pageNumber = 1; pageNumber < Number.POSITIVE_INFINITY; pageNumber++) {
-        const svgElement = document.getElementById("osmdSvgPage" + pageNumber);
-        if (!svgElement) {
-          break;
-        }
-        
+      for (let pageNumber = 1, svgElement; svgElement = document.getElementById("osmdSvgPage" + pageNumber); pageNumber++) {
         // The important xmlns attribute is not serialized unless we set it here
         svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
         markupStrings.push(svgElement.outerHTML);
       }
 
-      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(`musicxml_uploads/music_${idx}.svg`, string));
+      const fileNames = markupStrings.map((_, idx) => {
+        const filePath = `musicxml_uploads/music_${idx}.svg`;
+        const name = `music_${idx}.svg`;
+
+        return { path: filePath, name };
+      });
+
+      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(fileNames[idx].path, string));
       await Promise.all(writeToFiles);
-      res.status(200).send({ files: markupStrings.map((_, idx) => `music_${idx}.svg`)});
+      
+      // @ts-ignore
+      await res.zip({
+        files: fileNames,
+        filename: 'music-xml-to-svgs.zip'
+      });
+
+      await Promise.all(fileNames.map(({ path }) => fs.unlink(path)));
     } else {
       res.status(400).send("No file uploaded");
     }
