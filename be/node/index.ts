@@ -14,7 +14,7 @@ import zip from "express-easy-zip";
 dotenv.config();
 
 const app: Express = express();
-const upload: Multer = multer({ dest: "musicxml_uploads" });
+const upload: Multer = multer({ storage: multer.memoryStorage() });
 const port = process.env.NODE_PORT;
 
 app.use(cors());
@@ -131,8 +131,7 @@ app.post(
         pageFormat,
       });
 
-      const uploadedPath = uploadedFile.path;
-      const musicXMLFile = await fs.readFile(uploadedPath);
+      const musicXMLFile = uploadedFile.buffer;
 
       let musicXMLString;
       if (uploadedFile.originalname.endsWith(".mxl")) {
@@ -144,8 +143,6 @@ app.post(
           .replace(/[^\x20-\x7E]/g, "")
           .trim();
       }
-
-      await fs.unlink(uploadedPath);
 
       await osmd.load(musicXMLString);
       osmd.render();
