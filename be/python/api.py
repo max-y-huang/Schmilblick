@@ -16,13 +16,13 @@ env = dotenv_values('.env')
 def run():
     # check arguments
     if 'file' not in flask.request.files:
-        return { 'result': 400, 'message': 'Missing <file>.' }
+        return { 'status': 400, 'message': 'Missing <file>.' }
     # compile file
     try:
         file = flask.request.files['file']
         parts = MXLCompiler.from_file(file).compile()
         return {
-            'success': 200,
+            'status': 200,
             'parts': {
                 part['id']: {
                     'name': part['name'],
@@ -32,11 +32,11 @@ def run():
             }
         }
     except:
-        return { 'result': 400, 'message': 'Failed to compile <file>.' }
+        return { 'status': 400, 'message': 'Failed to compile <file>.' }
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-d', '--debug', help='run the app in debug mode', action='store_true')
     args = arg_parser.parse_args()
 
-    app.run(host='0.0.0.0', port=env['PORT'], debug=args.debug)
+    app.run(host='0.0.0.0', port=env['PYTHON_PORT'], debug=args.debug)

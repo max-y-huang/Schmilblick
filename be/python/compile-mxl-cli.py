@@ -9,7 +9,6 @@ import midiutil
 from mxl_compiler.compiler import MXLCompiler
 
 
-_IN_MXL_DIR = './in/<SCORE>.mxl'
 _OUT_MIDI_DIR = './out/<SCORE>/<PART>.mid'
 _OUT_DATA_DIR = './out/<SCORE>/<PART>.json'
 
@@ -49,16 +48,14 @@ def prompt_preview(score_name, parts):
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-s', '--score', help='the MusicXML score to use', required=True)
+    arg_parser.add_argument('-f', '--file', help='the MusicXML score to use', required=True)
     arg_parser.add_argument('-p', '--preview', help='preview a parsed part in MIDI', action='store_true')
     args = arg_parser.parse_args()
 
-    score_name = args.score
+    score_name = os.path.basename(args.file).rstrip('.mxl')
     pathlib.Path(f'./out/{score_name}').mkdir(parents=True, exist_ok=True)
 
-    in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
-
-    parts = MXLCompiler.from_file(in_mxl_dir).compile()
+    parts = MXLCompiler.from_file(args.file).compile()
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
