@@ -12,7 +12,7 @@ Run the following command:
 
 ```sh
 # --debug: run the app in debug mode
-./python/api.py [--debug]
+./python/main.py [--debug]
 ```
 
 Send a POST request to the following endpoint with the appropriate arguments:
@@ -30,16 +30,16 @@ http://localhost:<python_port>/compile-mxl
 #### On success:
 
 ```json
+// status: 2XX
 {
-  "status": 200,
   "parts": {
     "<part_id>": {
       "name": "<part_name>",
       "notes": [
         {
-          "time": 0, // in seconds
-          "duration": 1, // in seconds
-          "pitch": 65 // encoded like MIDI pitch
+          "time": <seconds>,
+          "duration": <seconds>,
+          "pitch": <midi_pitch>
         },
         ...
       ]
@@ -52,8 +52,8 @@ http://localhost:<python_port>/compile-mxl
 #### On failure:
 
 ```json
+// status: 4XX
 {
-  "status": 400, // some code that is not 2XX
   "message": "<error_message>"
 }
 ```
@@ -66,7 +66,7 @@ Add the following line(s) to `.env`:
 NODE_PORT=<node_port>
 ```
 
-<span style="background-color: #d44; color: #fff; padding: 0 0.2em">TODO: Add more instructions here.</span>
+TODO: Add more instructions here.
 
 ## MXL Compiler CLI Instructions
 

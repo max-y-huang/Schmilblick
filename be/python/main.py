@@ -16,13 +16,12 @@ env = dotenv_values('.env')
 def run():
     # check arguments
     if 'file' not in flask.request.files:
-        return { 'status': 400, 'message': 'Missing <file>.' }
+        return { 'message': 'Missing <file>.' }, 400
     # compile file
     try:
         file = flask.request.files['file']
         parts = MXLCompiler.from_file(file).compile()
         return {
-            'status': 200,
             'parts': {
                 part['id']: {
                     'name': part['name'],
@@ -30,9 +29,9 @@ def run():
                 }
                 for part in parts
             }
-        }
+        }, 200
     except:
-        return { 'status': 400, 'message': 'Failed to compile <file>.' }
+        return { 'message': 'Failed to compile <file>.' }, 400
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
