@@ -15,7 +15,7 @@ dotenv.config();
 
 const app: Express = express();
 const upload: Multer = multer({ dest: "musicxml_uploads" });
-const port = process.env.PORT;
+const port = process.env.NODE_PORT;
 
 app.use(cors());
 app.use(zip());
@@ -23,7 +23,10 @@ app.use(zip());
 app.post(
   "/musicxml-to-svg",
   upload.single("musicxml"),
-  [body('pageWidth').isFloat({ gt: 0 }), body('pageHeight').optional().isFloat({ min: 0 })],
+  [
+    body("pageWidth").isFloat({ gt: 0 }),
+    body("pageHeight").optional().isFloat({ min: 0 }),
+  ],
   async (req: Request, res: Response) => {
     const result = validationResult(req);
 
@@ -57,7 +60,10 @@ app.post(
       global.Node = window.Node;
 
       const oldCreateElement = document.createElement.bind(document);
-      const newCreateElement = (tagName: Parameters<typeof document.createElement>[0], options: ElementCreationOptions) => {
+      const newCreateElement = (
+        tagName: Parameters<typeof document.createElement>[0],
+        options: ElementCreationOptions
+      ) => {
         if (tagName.toLowerCase() === "canvas") {
           const canvas = oldCreateElement("canvas", options);
           const oldGetContext = canvas.getContext.bind(canvas);
@@ -146,7 +152,11 @@ app.post(
 
       let markupStrings = [];
 
-      for (let pageNumber = 1, svgElement; svgElement = document.getElementById("osmdSvgPage" + pageNumber); pageNumber++) {
+      for (
+        let pageNumber = 1, svgElement;
+        (svgElement = document.getElementById("osmdSvgPage" + pageNumber));
+        pageNumber++
+      ) {
         // The important xmlns attribute is not serialized unless we set it here
         svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
         markupStrings.push(svgElement.outerHTML);
@@ -159,13 +169,15 @@ app.post(
         return { path: filePath, name };
       });
 
-      const writeToFiles = markupStrings.map((string, idx) => fs.writeFile(fileNames[idx].path, string));
+      const writeToFiles = markupStrings.map((string, idx) =>
+        fs.writeFile(fileNames[idx].path, string)
+      );
       await Promise.all(writeToFiles);
-      
+
       // @ts-ignore
       await res.zip({
         files: fileNames,
-        filename: 'music-xml-to-svgs.zip'
+        filename: "music-xml-to-svgs.zip",
       });
 
       await Promise.all(fileNames.map(({ path }) => fs.unlink(path)));
