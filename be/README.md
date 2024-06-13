@@ -2,10 +2,10 @@
 
 ## Python API Instructions
 
-Add the following to the environment variables file `./.env`:
+Add the following line(s) to `.env`:
 
 ```
-PORT=<port>
+PYTHON_PORT=<python_port>
 ```
 
 Run the following command:
@@ -18,7 +18,7 @@ Run the following command:
 Send a POST request to the following endpoint with the appropriate arguments:
 
 ```
-http//localhost:<port>/compile-mxl
+http://localhost:<python_port>/compile-mxl
 ```
 
 | Argument | Type | Description                            |
@@ -58,9 +58,15 @@ http//localhost:<port>/compile-mxl
 }
 ```
 
-## NodeJS API Instructions
+## Node API Instructions
 
-TODO: add instructions here
+Add the following line(s) to `.env`:
+
+```
+NODE_PORT=<node_port>
+```
+
+<span style="background-color: #d44; color: #fff; padding: 0 0.2em">TODO: Add more instructions here.</span>
 
 ## MXL Compiler CLI Instructions
 
