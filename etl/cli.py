@@ -5,10 +5,6 @@ import json
 import pathlib
 import argparse
 import midiutil
-import zipfile
-import tempfile
-
-from xml.etree import ElementTree
 
 from mxl_compiler.compiler import MXLCompiler
 
@@ -16,19 +12,6 @@ from mxl_compiler.compiler import MXLCompiler
 _IN_MXL_DIR = './in/<SCORE>.mxl'
 _OUT_MIDI_DIR = './out/<SCORE>/<PART>.mid'
 _OUT_DATA_DIR = './out/<SCORE>/<PART>.json'
-
-
-def import_mxl_as_xml(dir):
-    # unzip file to temporary directory
-    with zipfile.ZipFile(dir, 'r') as z:
-        zip_dir = tempfile.mkdtemp()
-        z.extractall(zip_dir)
-        xml_fname = next(d for d in os.listdir(zip_dir) if d.endswith('.xml') or d.endswith('.musicxml'))  # get first .xml or .musicxml file in zip_dir
-        xml_dir = os.path.join(zip_dir, xml_fname)
-    # get xml from temporary directory
-    with open(xml_dir) as f:
-        obj = ElementTree.parse(f)
-    return obj
 
 
 def save_notes_as_json(dir, notes):
@@ -74,9 +57,8 @@ if __name__ == '__main__':
     pathlib.Path(f'./out/{score_name}').mkdir(parents=True, exist_ok=True)
 
     in_mxl_dir = _IN_MXL_DIR.replace('<SCORE>', score_name)
-    score = import_mxl_as_xml(in_mxl_dir).getroot()
 
-    parts = MXLCompiler(score).compile()
+    parts = MXLCompiler.from_file(in_mxl_dir).compile()
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
