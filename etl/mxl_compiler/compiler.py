@@ -1,3 +1,9 @@
+import zipfile
+import tempfile
+import os
+
+from xml.etree import ElementTree
+
 from mxl_compiler.part import PartHandler
 from mxl_compiler.measure import MeasureHandler
 from mxl_compiler.repeat import RepeatHandler
@@ -15,6 +21,20 @@ class MXLCompiler():
 
     def __init__(self, data):
         self.data = data
+    
+    @classmethod
+    def from_file(cls, dir):
+        # unzip file to temporary directory
+        with zipfile.ZipFile(dir, 'r') as z:
+            zip_dir = tempfile.mkdtemp()
+            z.extractall(zip_dir)
+            xml_fname = next(d for d in os.listdir(zip_dir) if d.endswith('.xml') or d.endswith('.musicxml'))  # get first .xml or .musicxml file in zip_dir
+            xml_dir = os.path.join(zip_dir, xml_fname)
+        # get xml data from temporary directory
+        with open(xml_dir) as f:
+            obj = ElementTree.parse(f)
+            obj = obj.getroot()
+        return cls(obj)
     
     def compile(self):
 
