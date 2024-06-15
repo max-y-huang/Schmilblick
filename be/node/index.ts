@@ -26,7 +26,7 @@ app.use(zip());
 app.post(
   "/musicxml-to-svg",
   upload.single("musicxml"),
-  [body("pageWidth").isInt({ gt: MIN_PAGE_WIDTH - 1 })],
+  [body("pageWidth").isInt({ min: MIN_PAGE_WIDTH - 1 })],
   async (req: Request, res: Response) => {
     const result = validationResult(req);
     const uploadedFile = req.file;
