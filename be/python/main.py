@@ -1,19 +1,25 @@
 #!/usr/bin/env python
 
 import argparse
+import dotenv
 import flask
-
-from dotenv import dotenv_values
+import re
+import urllib.request
+import requests
 
 from mxl_compiler.compiler import MXLCompiler
 
 
 app = flask.Flask(__name__)
-env = dotenv_values('.env')
+env = dotenv.dotenv_values('.env')
+
+
+class URLOpener(urllib.request.FancyURLopener):
+    version = "Mozilla/5.0"
 
 
 @app.route('/compile-mxl', methods=['POST'])
-def run():
+def compile_mxl():
     # check arguments
     if 'file' not in flask.request.files:
         return { 'message': 'Missing <file>.' }, 400
@@ -32,6 +38,22 @@ def run():
         }, 200
     except:
         return { 'message': 'Failed to compile <file>.' }, 400
+
+
+@app.route('/scrape-mxl', methods=['POST'])
+def scrape_mxl():
+    
+    with URLOpener().open(flask.request.args['url']) as f:
+        html = f.read().decode('utf8')
+
+    x = re.search('https:\/\/musescore\.com\/score\/download\/index\?score_id=(\d+)&amp;type=mxl&amp;h=(\d+)', html)
+    x = re.sub('&amp;', '&', x.group())
+
+    y = requests.get(x)
+    with open('temp.mxl', 'wb') as f:
+        f.write(y.content)
+    return x
+
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()

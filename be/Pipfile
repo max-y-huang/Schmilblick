@@ -7,6 +7,7 @@ name = "pypi"
 midiutil = "*"
 flask = "*"
 python-dotenv = "*"
+requests = "*"
 
 [dev-packages]
 
