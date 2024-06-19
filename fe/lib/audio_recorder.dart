@@ -34,7 +34,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
     });
 
     _amplitudeSub = _audioRecorder
-        .onAmplitudeChanged(const Duration(milliseconds: 350))
+        .onAmplitudeChanged(const Duration(milliseconds: 800))
         .listen((amp) {
       setState(() => _amplitude = amp);
     });
@@ -55,7 +55,8 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         final devs = await _audioRecorder.listInputDevices();
         print("All input devices: ${devs.toString()}");
 
-        const config = RecordConfig(encoder: encoder, numChannels: 1);
+        const config =
+            RecordConfig(encoder: encoder, sampleRate: 20480, numChannels: 1);
 
         await recordStream(_audioRecorder, config);
 
