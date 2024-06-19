@@ -1,3 +1,7 @@
-node_modules/
 musicxml_uploads/
+
+in/
+out/
+
 .env
+.python-version

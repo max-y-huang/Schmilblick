@@ -38,6 +38,8 @@ dependencies:
   flutter_svg: ^2.0.10+1
   http: ^1.2.1
   archive: ^3.6.1
+  record: ^5.1.1
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:
