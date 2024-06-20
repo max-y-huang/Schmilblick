@@ -41,14 +41,6 @@ class MeasureList:
             counter += 1
         return ret
     
-    def get_notes(self):
-        ret = []
-        flattened_measures = self.flatten()
-        for m in range(flattened_measures.num_measures):
-            measure = flattened_measures[m]
-            ret += measure.notes
-        return ret
-    
     def to_json(self):
         ret = []
         flattened_measures = self.flatten()
@@ -86,6 +78,8 @@ class MeasureHandler(BaseHandler):
         state.src = self.data
         state.measure_times = {}
         state.num_measures = 0
+        state.page_itr = 0
+        state.page_table = {}
     
     def run(self):
         state = super().run()
@@ -110,7 +104,11 @@ class MeasureHandler(BaseHandler):
         if number + 1 > state.num_measures:
             state.num_measures = number + 1
         
+        if obj.find('print[@new-page="yes"]') is not None:
+            state.page_itr += 1
+        
         state.measure_times[number] = state.time
+        state.page_table[number] = state.page_itr
 
         for note in obj.findall('note'):
             note.attrib['measure'] = number

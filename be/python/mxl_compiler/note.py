@@ -13,7 +13,7 @@ class Note:
         return self.measure.time + self.time_offset
     
     def to_json(self):
-        return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch }
+        return { 'time': self.time, 'duration': self.duration, 'pitch': self.pitch, 'measure': self.measure.number }
 
 
 class NoteHandler(BaseHandler):
