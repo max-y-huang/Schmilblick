@@ -41,14 +41,6 @@ class MeasureList:
             counter += 1
         return ret
     
-    def get_notes(self):
-        ret = []
-        flattened_measures = self.flatten()
-        for m in range(flattened_measures.num_measures):
-            measure = flattened_measures[m]
-            ret += measure.notes
-        return ret
-    
     def to_json(self):
         ret = []
         flattened_measures = self.flatten()

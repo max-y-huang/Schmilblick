@@ -16,17 +16,15 @@ _OUT_DATA_DIR = './out/<SCORE>/<PART>.json'
 
 def save_part_as_json(dir, part):
     with open(dir, 'w') as f:
-        new_part = copy.deepcopy(part)
-        new_part['notes'] = new_part['notes'].to_json()
-        print(json.dumps(new_part), file=f)
+        print(json.dumps(part), file=f)
 
 
 def save_notes_as_midi(dir, notes):
     track, channel = 0, 0
     MyMIDI = midiutil.MIDIFile(1, deinterleave=False)
     MyMIDI.addTempo(track, channel, 60)  # 60 bpm = 1 beat per second
-    for note in notes.get_notes():
-        MyMIDI.addNote(track, channel, note.pitch, note.time, note.duration, 127)
+    for note in notes:
+        MyMIDI.addNote(track, channel, note['pitch'], note['time'], note['duration'], 127)
     with open(dir, 'wb') as f:
         MyMIDI.writeFile(f)
 

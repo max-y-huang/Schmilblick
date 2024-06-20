@@ -50,7 +50,7 @@ class MXLCompiler():
             p_notes = NoteHandler(p_measures.src, p_measures.measure_list).run()
             part['obj'] = {
                 'page_table': p_measures.page_table,
-                'notes': p_notes,
+                'notes': p_notes.to_json(),
             }
 
         return p_parts.parts

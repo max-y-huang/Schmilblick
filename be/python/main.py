@@ -26,7 +26,7 @@ def run():
                 part['id']: {
                     'name': part['name'],
                     'page_table': part['obj']['page_table'],
-                    'notes': part['obj']['notes'].to_json(),
+                    'notes': part['obj']['notes'],
                 }
                 for part in parts
             }
