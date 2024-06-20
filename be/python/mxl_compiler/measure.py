@@ -86,6 +86,8 @@ class MeasureHandler(BaseHandler):
         state.src = self.data
         state.measure_times = {}
         state.num_measures = 0
+        state.page_itr = 0
+        state.page_table = {}
     
     def run(self):
         state = super().run()
@@ -110,7 +112,11 @@ class MeasureHandler(BaseHandler):
         if number + 1 > state.num_measures:
             state.num_measures = number + 1
         
+        if obj.find('print[@new-page="yes"]') is not None:
+            state.page_itr += 1
+        
         state.measure_times[number] = state.time
+        state.page_table[number] = state.page_itr
 
         for note in obj.findall('note'):
             note.attrib['measure'] = number

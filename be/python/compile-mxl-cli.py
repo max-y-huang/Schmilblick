@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import os
 import json
 import pathlib
@@ -13,9 +14,11 @@ _OUT_MIDI_DIR = './out/<SCORE>/<PART>.mid'
 _OUT_DATA_DIR = './out/<SCORE>/<PART>.json'
 
 
-def save_notes_as_json(dir, notes):
+def save_part_as_json(dir, part):
     with open(dir, 'w') as f:
-        print(json.dumps(notes.to_json()), file=f)
+        new_part = copy.deepcopy(part)
+        new_part['notes'] = new_part['notes'].to_json()
+        print(json.dumps(new_part), file=f)
 
 
 def save_notes_as_midi(dir, notes):
@@ -59,8 +62,8 @@ if __name__ == '__main__':
     for part in parts:
         out_data_dir = _OUT_DATA_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
         out_midi_dir = _OUT_MIDI_DIR.replace('<SCORE>', score_name).replace('<PART>', part['id'])
-        save_notes_as_json(out_data_dir, part['obj'])
-        save_notes_as_midi(out_midi_dir, part['obj'])
+        save_part_as_json(out_data_dir, part['obj'])
+        save_notes_as_midi(out_midi_dir, part['obj']['notes'])
     
     if args.preview:
         prompt_preview(score_name, parts)

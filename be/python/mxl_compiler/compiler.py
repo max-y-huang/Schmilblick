@@ -48,7 +48,10 @@ class MXLCompiler():
             p_measures.measure_list.set_jumps(jumps)
 
             p_notes = NoteHandler(p_measures.src, p_measures.measure_list).run()
-            part['obj'] = p_notes
+            part['obj'] = {
+                'page_table': p_measures.page_table,
+                'notes': p_notes,
+            }
 
         return p_parts.parts
 
