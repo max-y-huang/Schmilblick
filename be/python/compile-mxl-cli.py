@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import copy
 import os
 import json
 import pathlib
