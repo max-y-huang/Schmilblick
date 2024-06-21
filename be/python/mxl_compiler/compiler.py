@@ -49,7 +49,11 @@ class MXLCompiler():
 
             p_notes = NoteHandler(p_measures.src, p_measures.measure_list).run()
             part['obj'] = {
-                'page_table': p_measures.page_table,
+                'page_table': [  # convert page table to list
+                    p_measures.page_table[p]
+                    for p in range(p_measures.num_measures)
+                ],
+                # 'page_table': p_measures.page_table,
                 'notes': p_notes.to_json(),
             }
 

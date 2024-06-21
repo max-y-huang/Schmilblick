@@ -73,6 +73,7 @@ class Measure:
 
 
 class MeasureHandler(BaseHandler):
+    # FIXME: assumes measures start at 1 and increment by 1
 
     def pre_run(self, state):
         state.src = self.data
