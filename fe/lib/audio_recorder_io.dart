@@ -23,40 +23,32 @@ mixin AudioRecorderMixin {
     final path = await _getPath();
     final file = File(path);
 
-    final hannWindow = hann(2048);
+    const numberOfSamples = 2048;
+    final hannWindow = hann(numberOfSamples);
 
     final stream = await recorder.startStream(config);
 
     stream.listen(
       (data) {
-        // get from list as uint8 integers first
+        // Convert the bytes into a 16 bit integer PCM array as convention
         final rawListIntPCM =
             recorder.convertBytesToInt16(Uint8List.fromList(data));
 
-        // print("List raw list int PCM: ${rawListIntPCM.length}");
-
-        // convert to a list in double
+        // convert the list to a double
         final rawListDoublePCM =
             rawListIntPCM.map((i) => i.toDouble()).toList();
 
-        // print("List raw list double PCM: ${rawListDoublePCM.length}");
 
-        // create a new array in scidart
+        // windowing operation
         var sciListDoublePCM = Array(rawListDoublePCM);
-
-        var length = sciListDoublePCM.length;
-
-        print("Length of array: $length");
-
         var windowedPCM = sciListDoublePCM * hannWindow;
 
+        // Perform FFT on the complex field
         var complexArray = arrayToComplexArray(windowedPCM);
+        var fftResult = fft(complexArray, n: numberOfSamples);
 
-        var fftResult = fft(complexArray, n: 2048);
-
+        // Obtain the FFT result, plot on Octave
         var absFFTResult = arrayComplexAbs(fftResult);
-
-        print("FFT finished");
 
         // windowed PCM
         // file.writeAsStringSync(windowedPCM.toString(), mode: FileMode.append);
