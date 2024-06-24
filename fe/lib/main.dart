@@ -1,12 +1,12 @@
-import 'dart:typed_data';
+import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:archive/archive_io.dart';
-
-// import 'package:record_example/audio_player.dart';
 import 'audio_recorder.dart';
 
 void main() => runApp(const MyApp());
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: RecorderPage(),
+      home: ScoreSheet(),
     );
   }
 }
@@ -34,30 +34,28 @@ class ScoreSheet extends StatefulWidget {
   State<ScoreSheet> createState() => _ScoreSheetState();
 }
 
-// TODO: Make it look nicer with buttons to toggle scroll/page flip mode or something????
-// TODO: Make the UI and code nicer.
 class _ScoreSheetState extends State<ScoreSheet> {
-  List<OutputStream>? _outputStreams;
-  double? _width;
-  double? _height;
+  final uri = 'https://279df8c5ec0b57.lhr.life';
+  // int? _shortLength;
+  // int? _longLength;
 
-  final uri = 'http://localhost:3000';
+  int? _width;
 
-  void _getSvgLinks() async {
-    // TODO: Might want to make two calls to the backend, one for vertical, one horizontal
+  // List<SvgPicture>? _portraitSvgs;
+  // List<SvgPicture>? _landscapeSvgs;
+  List<SvgPicture>? _svgs;
+
+  Future<List<OutputStream>> _getSvgLinks(int imageWidth) async {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
-    request.fields['pageWidth'] = _width.toString();
-    // request.fields['pageHeight'] = _height.toString();
-    
+    request.fields['pageWidth'] = imageWidth.toString();
+
     const filename = "happy_birthday.mxl";
     final musicxmlBytes = (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes, filename: filename));
 
     final streamResponse = await request.send();
     final response = await http.Response.fromStream(streamResponse);
-
-    final inputStream = InputStream(response.bodyBytes);
-    final archive = ZipDecoder().decodeBuffer(inputStream);
+    final archive = ZipDecoder().decodeBytes(response.bodyBytes);
 
     List<OutputStream> outputStreams = [];
     for (final file in archive.files) {
@@ -68,30 +66,72 @@ class _ScoreSheetState extends State<ScoreSheet> {
       }
     }
 
+    return outputStreams;
+  }
+
+  void _getSvg() async {
+    if (_width == null) {
+      return;
+    }
+
+    List<OutputStream> outputStreams = await _getSvgLinks(_width!);
+    final List<SvgPicture> outputPictures = outputStreams.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList();
     setState(() {
-      _outputStreams = outputStreams;
+      _svgs = outputPictures;
     });
   }
-  
+
+  // void _getSvgLandscape() async {
+  //   if (_longLength == null) {
+  //     return;
+  //   }
+  //
+  //   final List<OutputStream> outputStreams = await _getSvgLinks(_longLength!);
+  //   final List<SvgPicture> outputPictures = outputStreams.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList();
+  //   print("get svg landscape");
+  //   setState(() {
+  //   _landscapeSvgs = outputPictures;
+  //   });
+  // }
+  //
+  // void _getSvgPortrait() async {
+  //   if (_shortLength == null) {
+  //     return;
+  //   }
+  //
+  //   print("get svg portrait");
+  //   List<OutputStream> outputStreams = await _getSvgLinks(_shortLength!);
+  //   final List<SvgPicture> outputPictures = outputStreams.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList();
+  //   setState(() {
+  //     _portraitSvgs = outputPictures;
+  //   });
+  // }
+
+  @override
+  void initState() {
+    super.initState();
+    // First get the FlutterView.
+    FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
+    
+    // Dimensions in physical pixels (px)
+    Size size = view.physicalSize / view.devicePixelRatio;
+    _width = size.width.toInt();
+    print(_width);
+
+    _getSvg();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder (
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (_width != constraints.maxWidth || _height != constraints.maxHeight) {
-          // TODO: Find a better way to get the width and height and answer the question: "Do we want
-          // to call the backend every time the screen size changes?"
-          _width = constraints.maxWidth;
-          _height = constraints.maxHeight;
-          _getSvgLinks();
-        }
+    return OrientationBuilder(
+      builder: (BuildContext context, Orientation orientation) {
+        List<Widget> children = (_svgs != null && orientation == Orientation.landscape) ? _svgs as List<Widget> : [Placeholder()];
 
         return Container(
           color: Colors.white,
           child: ListView(
             scrollDirection: Axis.vertical,
-            children: _outputStreams != null 
-              ? _outputStreams!.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList()
-              : [Placeholder()]
+            children: children
           )
         );
       }
