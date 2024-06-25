@@ -30,7 +30,7 @@ class ScoreSheet extends StatefulWidget {
 }
 
 class _ScoreSheetState extends State<ScoreSheet> {
-  Uint8List? _pdfbytes;
+  Uint8List? _pdfBytes;
   late final PDFViewController _pdfViewController;
 
   @override
@@ -40,15 +40,18 @@ class _ScoreSheetState extends State<ScoreSheet> {
   }
 
   void setFile() async {
+    // TODO: Turn the file into a backend call. For now, as proof of concept
+    // we'll use this file for now.
     final file = await rootBundle.load('assets/happy_birthday.pdf');
     setState(() {
-      _pdfbytes = file.buffer.asUint8List();
+      _pdfBytes = file.buffer.asUint8List();
     });
   }
 
   void goToLastPage() async {
+    // TODO: Remove this comment. As proof of concept, you
+    // can programmatically change the page with the PDFViewController
     final pageCount = await _pdfViewController.getPageCount();
-    print(pageCount);
     if (pageCount != null) {
       await _pdfViewController.setPage(pageCount - 1);
     }
@@ -58,12 +61,9 @@ class _ScoreSheetState extends State<ScoreSheet> {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      child: _pdfbytes != null ? PDFView(
-        pdfData: _pdfbytes!,
+      child: _pdfBytes != null ? PDFView(
+        pdfData: _pdfBytes!,
         swipeHorizontal: true,
-        onError: (error) {
-          print(error.toString());
-        },
         onViewCreated: (PDFViewController pdfViewController) {
           _pdfViewController = pdfViewController;
           goToLastPage();
