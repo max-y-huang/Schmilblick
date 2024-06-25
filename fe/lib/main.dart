@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'audio_recorder.dart';
+import 'dart:math';
 
 void main() => runApp(const MyApp());
 
@@ -32,6 +35,8 @@ class ScoreSheet extends StatefulWidget {
 class _ScoreSheetState extends State<ScoreSheet> {
   Uint8List? _pdfBytes;
   late final PDFViewController _pdfViewController;
+  late int? _pageCount;
+  late Timer _timer;
 
   @override
   void initState() {
@@ -42,19 +47,31 @@ class _ScoreSheetState extends State<ScoreSheet> {
   void setFile() async {
     // TODO: Turn the file into a backend call. For now, as proof of concept
     // we'll use this file for now.
-    final file = await rootBundle.load('assets/happy_birthday.pdf');
+    final file = await rootBundle.load('assets/joplin-scott-the-entertainer.pdf');
     setState(() {
       _pdfBytes = file.buffer.asUint8List();
     });
   }
 
-  void goToLastPage() async {
-    // TODO: Remove this comment. As proof of concept, you
-    // can programmatically change the page with the PDFViewController
-    final pageCount = await _pdfViewController.getPageCount();
-    if (pageCount != null) {
-      await _pdfViewController.setPage(pageCount - 1);
-    }
+  Future<void> goToRandomPagePerSecond(PDFViewController pdfViewController) async {
+    var rng = Random();
+    _pdfViewController = pdfViewController;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      // TODO: Replace this function and comment. As proof of concept, you
+      // can programmatically change the page with the PDFViewController
+      _pageCount = await _pdfViewController.getPageCount();
+      if (_pageCount != null && _pageCount! > 0) {
+        final page = rng.nextInt(_pageCount!);
+        await _pdfViewController.setPage(page);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _timer.cancel();
   }
 
   @override
@@ -64,10 +81,7 @@ class _ScoreSheetState extends State<ScoreSheet> {
       child: _pdfBytes != null ? PDFView(
         pdfData: _pdfBytes!,
         swipeHorizontal: true,
-        onViewCreated: (PDFViewController pdfViewController) {
-          _pdfViewController = pdfViewController;
-          goToLastPage();
-        },
+        onViewCreated: goToRandomPagePerSecond,
       ) : Placeholder(),
     );
   }
