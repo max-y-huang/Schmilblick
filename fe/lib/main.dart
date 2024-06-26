@@ -1,8 +1,7 @@
-import 'dart:math';
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
@@ -35,15 +34,12 @@ class ScoreSheet extends StatefulWidget {
 }
 
 class _ScoreSheetState extends State<ScoreSheet> {
-  final uri = 'https://279df8c5ec0b57.lhr.life';
-  // int? _shortLength;
-  // int? _longLength;
-
+  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   int? _width;
-
-  // List<SvgPicture>? _portraitSvgs;
-  // List<SvgPicture>? _landscapeSvgs;
   List<SvgPicture>? _svgs;
+
+  late final ScrollController _scrollController;
+  late final Timer _timer;
 
   Future<List<OutputStream>> _getSvgLinks(int imageWidth) async {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
@@ -81,31 +77,16 @@ class _ScoreSheetState extends State<ScoreSheet> {
     });
   }
 
-  // void _getSvgLandscape() async {
-  //   if (_longLength == null) {
-  //     return;
-  //   }
-  //
-  //   final List<OutputStream> outputStreams = await _getSvgLinks(_longLength!);
-  //   final List<SvgPicture> outputPictures = outputStreams.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList();
-  //   print("get svg landscape");
-  //   setState(() {
-  //   _landscapeSvgs = outputPictures;
-  //   });
-  // }
-  //
-  // void _getSvgPortrait() async {
-  //   if (_shortLength == null) {
-  //     return;
-  //   }
-  //
-  //   print("get svg portrait");
-  //   List<OutputStream> outputStreams = await _getSvgLinks(_shortLength!);
-  //   final List<SvgPicture> outputPictures = outputStreams.map((stream) => SvgPicture.memory(stream.getBytes() as Uint8List)).toList();
-  //   setState(() {
-  //     _portraitSvgs = outputPictures;
-  //   });
-  // }
+  void handleAttach(ScrollPosition scrollposition) {
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      final offset = _scrollController.offset;
+      _scrollController.jumpTo(offset + 10);
+    });
+  }
+
+  void handleDetach(ScrollPosition scrollposition) {
+    _timer.cancel();
+  }
 
   @override
   void initState() {
@@ -119,20 +100,24 @@ class _ScoreSheetState extends State<ScoreSheet> {
     print(_width);
 
     _getSvg();
+
+    _scrollController = ScrollController(
+      onAttach: handleAttach,
+      onDetach: handleDetach
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return OrientationBuilder(
       builder: (BuildContext context, Orientation orientation) {
-        List<Widget> children = (_svgs != null && orientation == Orientation.landscape) ? _svgs as List<Widget> : [Placeholder()];
-
         return Container(
           color: Colors.white,
-          child: ListView(
+          child: (_svgs != null && orientation == Orientation.landscape) ? ListView(
+            controller: _scrollController,
             scrollDirection: Axis.vertical,
-            children: children
-          )
+            children: _svgs!
+          ) : Placeholder()
         );
       }
     );
