@@ -97,7 +97,6 @@ class _ScoreSheetState extends State<ScoreSheet> {
     // Dimensions in physical pixels (px)
     Size size = view.physicalSize / view.devicePixelRatio;
     _width = size.width.toInt();
-    print(_width);
 
     _getSvg();
 
