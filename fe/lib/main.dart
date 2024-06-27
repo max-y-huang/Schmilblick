@@ -6,7 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:archive/archive_io.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'audio_recorder.dart';
+import 'dart:math';
 
 void main() => runApp(const MyApp());
 
@@ -21,19 +23,19 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: ScoreSheet(),
+      home: PagedScoreSheet(),
     );
   }
 }
 
-class ScoreSheet extends StatefulWidget {
-  const ScoreSheet({super.key});
+class ContinuousScoreSheet extends StatefulWidget {
+  const ContinuousScoreSheet({super.key});
 
   @override
-  State<ScoreSheet> createState() => _ScoreSheetState();
+  State<ContinuousScoreSheet> createState() => _ContinuousScoreSheetState();
 }
 
-class _ScoreSheetState extends State<ScoreSheet> {
+class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   int? _width;
   List<SvgPicture>? _svgs;
@@ -119,6 +121,68 @@ class _ScoreSheetState extends State<ScoreSheet> {
           ) : Placeholder()
         );
       }
+    );
+  }
+}
+
+class PagedScoreSheet extends StatefulWidget {
+  const PagedScoreSheet({super.key});
+
+  @override
+  State<PagedScoreSheet> createState() => _PagedScoreSheetState();
+}
+
+class _PagedScoreSheetState extends State<PagedScoreSheet> {
+  Uint8List? _pdfBytes;
+  late final PDFViewController _pdfViewController;
+  late int? _pageCount;
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    setFile();
+  }
+
+  void setFile() async {
+    // TODO: Turn the file into a backend call. For now, as proof of concept
+    // we'll use this file for now.
+    final file = await rootBundle.load('assets/joplin-scott-the-entertainer.pdf');
+    setState(() {
+      _pdfBytes = file.buffer.asUint8List();
+    });
+  }
+
+  Future<void> goToRandomPagePerSecond(PDFViewController pdfViewController) async {
+    var rng = Random();
+    _pdfViewController = pdfViewController;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      // TODO: Replace this function and comment. As proof of concept, you
+      // can programmatically change the page with the PDFViewController
+      _pageCount = await _pdfViewController.getPageCount();
+      if (_pageCount != null && _pageCount! > 0) {
+        final page = rng.nextInt(_pageCount!);
+        await _pdfViewController.setPage(page);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _timer.cancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: _pdfBytes != null ? PDFView(
+        pdfData: _pdfBytes!,
+        swipeHorizontal: true,
+        onViewCreated: goToRandomPagePerSecond,
+      ) : Placeholder(),
     );
   }
 }
