@@ -37,7 +37,7 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
+  final uri = 'https://1c72fa80861434.lhr.life'; // Replace this with localhost.run uri
   late int _width;
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
@@ -60,7 +60,11 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   void _setupSvg() {
     final response = _getSvgLinks(_width);
-    final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
+    final svgDocument = response.then((body) {
+      final str = utf8.decode(body.bodyBytes);
+      //print(str);
+      return XmlDocument.parse(str);
+    });
     final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
 
     setState(() {
@@ -78,7 +82,25 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   void _getMeasureInfo() async {
     final svgXml = await _svgXml;
     for (final child in svgXml.firstChild!.childElements) {
-      print(child.attributes);
+      if (child.getAttribute("class") == "staffline") {
+        for (final child2 in child.childElements) {
+          if (child2.getAttribute("class") == "vf-measure") {
+            for (final child3 in child2.children.sublist(0, 5)) {
+              print(child3.getAttribute("d"));
+              final coordinates = child3.getAttribute("d")!;
+              RegExp pattern = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)');
+              RegExpMatch regExpMatch = pattern.firstMatch(coordinates)!;
+              final x1 = regExpMatch.namedGroup('x1');
+              final x2 = regExpMatch.namedGroup('x2');
+              final y1 = regExpMatch.namedGroup('y1');
+              final y2 = regExpMatch.namedGroup('y2');
+
+              print("($x1 $y1) ($x2 $y2)");
+            }
+            //print(child2.attributes);
+          }
+        }
+      }
     }
   }
 
