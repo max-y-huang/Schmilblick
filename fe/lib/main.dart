@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:archive/archive_io.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:xml/xml.dart';
 import 'audio_recorder.dart';
@@ -40,13 +39,12 @@ class ContinuousScoreSheet extends StatefulWidget {
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
-  List<SvgPicture>? _svgs;
-  List<XmlDocument>? _svgXml;
+  late Future<SvgPicture> _svgs;
+  late Future<XmlDocument> _svgXml;
 
   late final ScrollController _scrollController;
-  // late final Timer _timer;
 
-  Future<List<OutputStream>> _getSvgLinks(int imageWidth) async {
+  Future<http.Response> _getSvgLinks(int imageWidth) async {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
@@ -56,37 +54,19 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
     final streamResponse = await request.send();
     final response = await http.Response.fromStream(streamResponse);
-    final archive = ZipDecoder().decodeBytes(response.bodyBytes);
 
-    List<OutputStream> outputStreams = [];
-    for (final file in archive.files) {
-      if (file.isFile) {
-        var outputStream = OutputStream();
-        file.writeContent(outputStream);
-        outputStreams.add(outputStream);
-      }
-    }
-
-    return outputStreams;
+    return response;
   }
 
-  void _setupSvg() async {
-    List<OutputStream> outputStreams = await _getSvgLinks(_width);
-    List<SvgPicture> svgPictures = [];
-    List<XmlDocument> svgDocuments = [];
-
-    for (final stream in outputStreams) {
-      final XmlDocument document = XmlDocument.parse(utf8.decode(stream.getBytes()));
-      final SvgPicture picture = SvgPicture.memory(stream.getBytes() as Uint8List);
-
-      svgPictures.add(picture);
-      svgDocuments.add(document);
-    }
+  void _setupSvg() {
+    final response = _getSvgLinks(_width);
+    final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
+    final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
 
     setState(() {
-      _svgs = svgPictures;
+      _svgs = svgPicture;
     });
-    _svgXml = svgDocuments;
+    _svgXml = svgDocument;
   }
 
   void _setWidth() {
@@ -95,8 +75,11 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _width = size.width.toInt();
   }
 
-  void _getMeasureInfo() {
-    
+  void _getMeasureInfo() async {
+    final svgXml = await _svgXml;
+    for (final child in svgXml.firstChild!.childElements) {
+      print(child.attributes);
+    }
   }
 
   @override
@@ -104,6 +87,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     super.initState();
     _setWidth();
     _setupSvg();
+    _getMeasureInfo();
     _scrollController = ScrollController();
   }
 
@@ -113,11 +97,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       builder: (BuildContext context, Orientation orientation) {
         return Container(
           color: Colors.white,
-          child: (_svgs != null && orientation == Orientation.landscape) ? ListView(
-            controller: _scrollController,
-            scrollDirection: Axis.vertical,
-            children: _svgs!
-          ) : Placeholder()
+          child: FutureBuilder(
+            future: _svgs,
+            builder: (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
+              if (snapshot.hasData) {
+                return ListView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.vertical,
+                  children: [snapshot.data!]
+                );
+              } else {
+                return Placeholder();
+              }
+            }
+          )
         );
       }
     );
