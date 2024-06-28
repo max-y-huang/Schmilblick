@@ -19,7 +19,7 @@
     "express-validator": "^7.1.0",
     "jsdom": "^24.1.0",
     "multer": "^1.4.5-lts.1",
-    "opensheetmusicdisplay": "^1.8.8",
+    "opensheetmusicdisplay": "git+https://github.com/opensheetmusicdisplay/opensheetmusicdisplay.git#9badd9e68ee2b177990d941daf18c6aa1300d11e",
     "ts-node": "^10.9.2"
   },
   "devDependencies": {
