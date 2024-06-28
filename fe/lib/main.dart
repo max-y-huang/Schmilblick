@@ -100,7 +100,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
           child: FutureBuilder(
             future: _svgs,
             builder: (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
-              if (snapshot.hasData) {
+              if (snapshot.hasData && orientation == Orientation.landscape) {
                 return ListView(
                   controller: _scrollController,
                   scrollDirection: Axis.vertical,
