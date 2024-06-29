@@ -29,6 +29,23 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class Coordinates {
+    double x1;
+    double y1;
+    double x2;
+    double y2;
+
+    Coordinates(this.x1, this.y1, this.x2, this.y2);
+}
+
+class MeasureInfo {
+  Coordinates topStaffLineCoords;
+  Coordinates bottomStaffLineCoords;
+  int grandStaffId;
+
+  MeasureInfo(this.topStaffLineCoords, this.bottomStaffLineCoords, this.grandStaffId);
+}
+
 class ContinuousScoreSheet extends StatefulWidget {
   const ContinuousScoreSheet({super.key});
 
@@ -41,6 +58,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   late int _width;
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
+  var grandStaves = []; // y-coordinate of each Grand Staff
+  var measures = <MeasureInfo>[];
 
   late final ScrollController _scrollController;
 
@@ -75,30 +94,79 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _width = size.width.toInt();
   }
 
+  
+  /*
+  args:
+    staffLine: a String of the format "M<number> <number>L<number> <number>"
+      e.g. "M106.123046875 1055.186219105622L326.7657137604009 1055.186219105622"
+  */
+  Coordinates getStaffLineCoordinates(staffLine) {
+    RegExp pattern = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)');
+    RegExpMatch regExpMatch = pattern.firstMatch(staffLine)!;
+    var x1 = regExpMatch.namedGroup('x1');
+    var y1 = regExpMatch.namedGroup('y1');
+    var x2 = regExpMatch.namedGroup('x2');
+    var y2 = regExpMatch.namedGroup('y2');
+
+    if (x1 == null || y1 == null || x2 == null || y2 == null) {
+      throw "Null coordinates";
+    }
+
+    return Coordinates(double.parse(x1), double.parse(y1), double.parse(x2), double.parse(y2));
+  }
+
   void _getMeasureInfo() async {
     final svgXml = await _svgXml;
+    var grandStaffId = 0;
+    var ignoreFirstMeasure = false;
+    // ^ sometimes a measure might've begun on the previous Grand Staff, 
+    //  in which case we can ignore it for the current Grand Staff.
+    
+    // Iterate over Grand Staves
     for (final child in svgXml.firstChild!.childElements) {
-      if (child.getAttribute("class") == "staffline") {
-        for (final child2 in child.childElements) {
-          if (child2.getAttribute("class") == "vf-measure") {
-            print("Measure #: ${child2.getAttribute("id")}");
-            for (final child3 in child2.children.sublist(0, 1)) {
-              //print(child3.getAttribute("d"));
-              final coordinates = child3.getAttribute("d")!;
-              RegExp pattern = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)');
-              RegExpMatch regExpMatch = pattern.firstMatch(coordinates)!;
-              final x1 = regExpMatch.namedGroup('x1');
-              final x2 = regExpMatch.namedGroup('x2');
-              final y1 = regExpMatch.namedGroup('y1');
-              final y2 = regExpMatch.namedGroup('y2');
+      if (child.getAttribute("class") == "staffline" && child.getAttribute("id") == "Piano0-1") {
+        final firstMeasure = child.children.sublist(0, 1)[0];
+        final topStaffLine = firstMeasure.children.sublist(0, 1)[0];
+        final grandStaffY = getStaffLineCoordinates(topStaffLine.getAttribute("d")).y1;
+        grandStaves.add(grandStaffY);
 
-              print("($x1 $y1) ($x2 $y2)");
+        // Iterate over measures
+        var i = 0;
+        if (ignoreFirstMeasure) i = 1;
+        var lastMeasureIncomplete = false;
+        for (final child2 in child.children.sublist(i, )) {
+          if (child2.getAttribute("class") == "vf-measure") {
+            if (child2.getAttribute("id") == "-1") {
+              ignoreFirstMeasure = true;
+              lastMeasureIncomplete = true;
             }
-            //print(child2.attributes);
+            //print("Measure #: ${child2.getAttribute("id")}");
+            final topStaffLine = child2.children.sublist(0, 1)[0];
+            final bottomStaffLine = child2.children.sublist(4, 5)[0];
+            final topStaffLineCoords = getStaffLineCoordinates(topStaffLine.getAttribute("d"));
+            final bottomStaffLineCoords = getStaffLineCoordinates(bottomStaffLine.getAttribute("d"));
+            measures.add(MeasureInfo(topStaffLineCoords, bottomStaffLineCoords, grandStaffId));
+            // print(topStaffLine.getAttribute("d"));
+            // print(bottomStaffLine.getAttribute("d"));
+            
           }
         }
+        if (lastMeasureIncomplete == false) ignoreFirstMeasure = false;
+        grandStaffId += 1;
       }
     }
+    print(grandStaves);
+    // for (final measure in measures) {
+    //   print(measure.grandStaffId);
+    //   print("${measure.topStaffLineCoords.x1} ${measure.topStaffLineCoords.x2} ${measure.topStaffLineCoords.y1}");
+    //   print("${measure.bottomStaffLineCoords.x1} ${measure.bottomStaffLineCoords.x2} ${measure.bottomStaffLineCoords.y1}");
+    // }
+  }
+
+  void jumpToMeasure(int measureNumber) {
+    int grandStaffId = measures[measureNumber].grandStaffId;
+    double yValue = grandStaves[grandStaffId];
+    _scrollController.jumpTo(yValue);
   }
 
   @override
@@ -129,12 +197,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
                       scrollDirection: Axis.vertical,
                       children: [snapshot.data!]
                     ),
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: () {
-                        _scrollController.jumpTo(500.0);
-                      },
-                      child: const Icon(Icons.arrow_upward),
-                      ),
+                  floatingActionButton: FloatingActionButton(
+                    onPressed: () {
+                      jumpToMeasure(6);
+                    },
+                    child: const Icon(Icons.arrow_upward),
+                    ),
                 );
               } else {
                 return Placeholder();
