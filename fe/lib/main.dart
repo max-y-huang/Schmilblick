@@ -37,7 +37,7 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'https://1c72fa80861434.lhr.life'; // Replace this with localhost.run uri
+  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
@@ -60,11 +60,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   void _setupSvg() {
     final response = _getSvgLinks(_width);
-    final svgDocument = response.then((body) {
-      final str = utf8.decode(body.bodyBytes);
-      //print(str);
-      return XmlDocument.parse(str);
-    });
+    final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
     final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
 
     setState(() {
