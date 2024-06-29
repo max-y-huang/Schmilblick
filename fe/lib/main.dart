@@ -81,8 +81,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       if (child.getAttribute("class") == "staffline") {
         for (final child2 in child.childElements) {
           if (child2.getAttribute("class") == "vf-measure") {
-            for (final child3 in child2.children.sublist(0, 5)) {
-              print(child3.getAttribute("d"));
+            print("Measure #: ${child2.getAttribute("id")}");
+            for (final child3 in child2.children.sublist(0, 1)) {
+              //print(child3.getAttribute("d"));
               final coordinates = child3.getAttribute("d")!;
               RegExp pattern = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)');
               RegExpMatch regExpMatch = pattern.firstMatch(coordinates)!;
@@ -107,6 +108,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _setupSvg();
     _getMeasureInfo();
     _scrollController = ScrollController();
+    _scrollController.addListener((){
+      print(_scrollController.position.pixels);
+    });
   }
 
   @override
@@ -119,10 +123,18 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
             future: _svgs,
             builder: (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
               if (snapshot.hasData && orientation == Orientation.landscape) {
-                return ListView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.vertical,
-                  children: [snapshot.data!]
+                return Scaffold(
+                  body: ListView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.vertical,
+                      children: [snapshot.data!]
+                    ),
+                    floatingActionButton: FloatingActionButton(
+                      onPressed: () {
+                        _scrollController.jumpTo(500.0);
+                      },
+                      child: const Icon(Icons.arrow_upward),
+                      ),
                 );
               } else {
                 return Placeholder();
