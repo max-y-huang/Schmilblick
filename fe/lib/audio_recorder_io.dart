@@ -71,13 +71,16 @@ mixin AudioRecorderMixin {
           }
         }
 
-        var [bins, mags] = findPeaks(absFFTResult);
+        // var [bins, mags] = findPeaks(absFFTResult);
 
+        var peaks = findPeaks(absFFTResult);
+
+        print("Peaks: $peaks");
         // Check the length of the FFT peaks, if it's over a certain length, it's presumed that percusiveness
         // is happening (the spectrum is effectively a mess)
 
-        print("Bins printed: $bins");
-        print("Magnitudes printed: $mags");
+        // print("Bins printed: $bins");
+        // print("Magnitudes printed: $mags");
 
         // if the bins are somewhat evenly spaced (give some error for x-1 <= x <= x+1), then we don't want to report the peaks yet
         // if (bins.length >= 8) {
