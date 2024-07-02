@@ -76,44 +76,44 @@ mixin AudioRecorderMixin {
         // Check the length of the FFT peaks, if it's over a certain length, it's presumed that percusiveness
         // is happening (the spectrum is effectively a mess)
 
-        // if the bins are somewhat evenly spaced (give some error for x-1 <= x <= x+1), then we don't want to report the peaks yet
-        if (bins.length >= 8) {
-          print("Bins surpassed the length, will return later...");
-          stopWatch.stop();
-          print("Elapsed time: ${stopWatch.elapsedMilliseconds}");
-          stopWatch.reset();
-          return;
-        }
-
         print("Bins printed: $bins");
         print("Magnitudes printed: $mags");
 
-        if (bins.length == 0) {
-          return;
-        }
-
-        if (bins.length == 1) {
-          print("Bins selected: ${bins[0]}");
-          print("Amplitude detected: ${mags[0]}");
-          return;
-        }
-
-        var differenceMach = 0;
-
-        // get the difference between the bins, and assess if they would be the same
-        // for (int i = 1; i < bins.length - 1; i++) {
-        //   if (differenceMach == ) differenceMach = mags[i] - mags[i - 1];
+        // if the bins are somewhat evenly spaced (give some error for x-1 <= x <= x+1), then we don't want to report the peaks yet
+        // if (bins.length >= 8) {
+        //   print("Bins surpassed the length, will return later...");
+        //   stopWatch.stop();
+        //   print("Elapsed time: ${stopWatch.elapsedMilliseconds}");
+        //   stopWatch.reset();
+        //   return;
         // }
 
-        print("Difference between bins: $differenceMach");
+        // if (bins.length == 0) {
+        //   return;
+        // }
 
-        for (int i = 0; i < bins.length - 1; i++) {
-          // find if it's within some error of the frequency bin
-          if (-1 * errorBoundForInterpol < differenceMach - bins[i] &&
-              differenceMach - bins[i] < errorBoundForInterpol) {
-            print("Bin selected: ${bins[i]}\n Amplitude detected: ${mags[i]}");
-          }
-        }
+        // if (bins.length == 1) {
+        //   print("Bins selected: ${bins[0]}");
+        //   print("Amplitude detected: ${mags[0]}");
+        //   return;
+        // }
+
+        // var differenceMach = 0;
+
+        // // get the difference between the bins, and assess if they would be the same
+        // // for (int i = 1; i < bins.length - 1; i++) {
+        // //   if (differenceMach == ) differenceMach = mags[i] - mags[i - 1];
+        // // }
+
+        // print("Difference between bins: $differenceMach");
+
+        // for (int i = 0; i < bins.length - 1; i++) {
+        //   // find if it's within some error of the frequency bin
+        //   if (-1 * errorBoundForInterpol < differenceMach - bins[i] &&
+        //       differenceMach - bins[i] < errorBoundForInterpol) {
+        //     print("Bin selected: ${bins[i]}\n Amplitude detected: ${mags[i]}");
+        //   }
+        // }
 
         stopWatch.stop();
         print("Elapsed time: ${stopWatch.elapsedMilliseconds}");
