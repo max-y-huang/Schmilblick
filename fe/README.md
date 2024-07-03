@@ -1,16 +1,30 @@
-# smart_turner
+# SmartTurner - Running the Flutter App
 
-A new Flutter project.
 
-## Getting Started
+## Install backend dependencies
+```
+cd be
+npm install --immutable
+```
 
-This project is a starting point for a Flutter application.
+## Run the server
+Inside `/be`, create a `.env` file with the contents `NODE_PORT=3000`. Now we can run the server at port 3000:
+```
+npm run dev
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Run the Flutter app on the Web (Chrome)
+Open a new terminal window and navigate to the `/fe` directory.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Inside `/fe`, create a directory called `/assets`, if it does not already exist. 
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Add `happy_birthday.mxl` to this `/assets` directory, if it does not already exist.
+> You can also upload any other `.mxl` file of your choosing, just make sure to change the `filename` in `main.dart` to be the name of your file:
+```
+const filename = "happy_birthday.mxl";
+```
+
+Select the Web as your device and run the Flutter app!
+
+
+
