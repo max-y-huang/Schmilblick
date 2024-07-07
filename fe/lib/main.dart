@@ -80,6 +80,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _width = size.width.toInt();
   }
 
+  // Determine if elem is a 'measure' element e.g.
+  //  <g class="vf-measure" id="1">
   bool _isMeasure(XmlElement elem) {
     if (elem.getAttribute('class') == null) {
       return false;
@@ -93,6 +95,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     }
   }
 
+  // Determine if elem is a 'line' element e.g. 
+  //  <path stroke-width="1" fill="none" stroke="#000000" stroke-dasharray="none" d="M171.66015625 625.5999999999999L472.4196980046949 625.5999999999999"></path>
   bool _isLine(XmlElement elem) {
     final String? dAttribute = elem.getAttribute("d");
     if (elem.name.local == "path" && dAttribute != null && lineCoordinatesRegex.hasMatch(dAttribute)) {
@@ -102,6 +106,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     }
   }
 
+  // Return the first child element of elem for which the predicate returns true
   XmlElement? _getChildElement(XmlElement elem, bool Function(XmlElement) predicate) {
     for (final XmlElement child in elem.childElements) {
       if (predicate(child)) {
@@ -111,35 +116,47 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     return null;
   }
 
+  // Return all child elements of elem for which the predicate returns true
   List<XmlElement> _getAllChildElements(XmlElement elem, bool Function(XmlElement) predicate) {
     List<XmlElement> children = [];
     for (final XmlElement child in elem.childElements) {
       if (predicate(child)) {
-        //print('id: ${child.getAttribute("id")}');
         children.add(child);
       }
     }
     return children;
   }
 
-  double getYCoord(String dAttribute) {
+  // Extract the y coordinate from a "dAttribute" - this is the attribute denoting the coordinates of a line element on the staff
+  // e.g. d="M171.66015625 625.5999999999999L472.4196980046949 625.5999999999999" -- the y coordinate is 625.5999 here
+  double _getYCoord(String dAttribute) {
     RegExpMatch regExpMatch = lineCoordinatesRegex.firstMatch(dAttribute)!;
     final y1 = regExpMatch.namedGroup('y1');
     return double.parse(y1!);
   }
   
+  // Get the y coordinate of a 'staffline' element. This means getting the y coordinate of the first line 
+  //  of any measure on the staff. "First" line means the top line (i.e. lowest y value line).
+  // e.g. stafflineElement:
+  //  <g class="staffline" id="Violin0-1">
+  //     <g class="vf-measure" id="5">...</g>
+  //     <g class="vf-measure" id="6">...</g>
+  //    ...
+  //  </g>
   double _getStafflineY(XmlElement stafflineElement) {
     XmlElement? measureElement = _getChildElement(stafflineElement, _isMeasure);
     if (measureElement == null) throw "No measures found?!";
     List<XmlElement> measureStaffLines = _getAllChildElements(measureElement, _isLine);
     var minY = -1.0;
     for (final line in measureStaffLines) {
-      final double y = getYCoord(line.getAttribute("d")!);
+      final double y = _getYCoord(line.getAttribute("d")!);
       if (y < minY || minY == -1.0) minY = y;
     }
     return minY;
   }
 
+  // Get the Id of the first measure in the 'staffline' element. See _getStafflineY documentation for
+  //  example of 'staffline' element. "First" measure means the measure with the lowest Id.
   int _getFirstMeasureId(XmlElement stafflineElement) {
     List<XmlElement> measureElements = _getAllChildElements(stafflineElement, _isMeasure);
     int minId = -1;
@@ -153,6 +170,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     return minId;
   }
 
+  // Given a measureId, return the Group the measure would belong to
   int _getGroupForMeasure(int measureId) {
     var left = 0;
     var right = groupStartingMeasures.length;
