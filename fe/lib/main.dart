@@ -37,13 +37,20 @@ class ContinuousScoreSheet extends StatefulWidget {
   State<ContinuousScoreSheet> createState() => _ContinuousScoreSheetState();
 }
 
+class GroupInfo {
+  int startingMeasure;
+  double equatorY;
+
+  GroupInfo(this.startingMeasure, this.equatorY);    
+}
+
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
+  late int _height;
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
-  var groupEquators = <double>[];
-  var groupStartingMeasures = <int>[];
+  var groups = <GroupInfo>[];
   final RegExp lineCoordinatesRegex = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
 
@@ -53,7 +60,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
-    const filename = "happy_birthday.mxl";
+    const filename = "Emerald_Moonlight.mxl";
     final musicxmlBytes = (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes, filename: filename));
 
@@ -78,6 +85,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
     Size size = view.physicalSize / view.devicePixelRatio;
     _width = size.width.toInt();
+    _height = size.height.toInt();
   }
 
   // Determine if elem is a 'measure' element e.g.
@@ -173,20 +181,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   // Given a measureId, return the Group the measure would belong to
   int _getGroupForMeasure(int measureId) {
     var left = 0;
-    var right = groupStartingMeasures.length;
-    var groupCount = groupStartingMeasures.length;
+    var right = groups.length;
+    var groupCount = groups.length;
     
     var mid = 0;
 
     while (true) {
       mid = (left + right ) ~/ 2;
       if (
-        measureId == groupStartingMeasures[mid] ||
-        (measureId > groupStartingMeasures[mid] && mid == groupCount - 1) ||
-        (measureId > groupStartingMeasures[mid] && measureId < groupStartingMeasures[mid + 1])
+        measureId == groups[mid].startingMeasure ||
+        (measureId > groups[mid].startingMeasure && mid == groupCount - 1) ||
+        (measureId > groups[mid].startingMeasure && measureId < groups[mid + 1].startingMeasure)
       ) {
         return mid;
-      } else if (measureId < groupStartingMeasures[mid]) {
+      } else if (measureId < groups[mid].startingMeasure) {
         right = mid;
       } else {
         left = mid;
@@ -213,26 +221,42 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         if (y > maxY) maxY = y;
         if (y < minY || minY == -1) minY = y;
       }
+      
+      final double midY = (maxY + minY) / 2;
       print('minY: $minY');
       print('maxY: $maxY');
-
-      final double midY = (maxY + minY) / 2;
-      groupEquators.add(midY);
-
+      print('midY: $midY');
       final int firstMeasureId = _getFirstMeasureId(stafflineElements[i]);
-      print('firstMeasureId: $firstMeasureId');
-      groupStartingMeasures.add(firstMeasureId);
+      groups.add(GroupInfo(firstMeasureId, midY));
     }
-    print(groupStartingMeasures);
-    print(groupEquators);
+
+    groups.sort((group1Info, group2Info) => group1Info.startingMeasure.compareTo(group2Info.startingMeasure));
+    final int veryFirstMeasureId = groups[0].startingMeasure;
+    for (var groupInfo in groups) {
+      groupInfo.startingMeasure -= veryFirstMeasureId;
+    }
+    print(groups);
   }
 
   void jumpToMeasure(int measureNumber) {
-    int group = _getGroupForMeasure(measureNumber);
-    final double offset = MediaQuery.sizeOf(context).height * 1/3;
+    int groupNumber = _getGroupForMeasure(measureNumber);
+    final double offset = _height * 1/3;
     print('offset $offset');
-    double yCoord = groupEquators[group] - offset;
-    _scrollController.jumpTo(yCoord);
+    double yCoord = groups[groupNumber].equatorY - offset;
+    double maxScroll = _scrollController.position.maxScrollExtent;
+    double minScroll = _scrollController.position.minScrollExtent;
+
+    if (yCoord > maxScroll) {
+      _scrollController.jumpTo(maxScroll);
+    } else if (yCoord < minScroll) {
+      _scrollController.jumpTo(0);
+    } else {
+      _scrollController.jumpTo(yCoord);
+    }
+
+    print("max extent ${_scrollController.position.maxScrollExtent}");
+    print("min extent ${_scrollController.position.minScrollExtent}");
+    print("height: $_height");
   }
 
   @override
@@ -243,7 +267,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _setupContinuousMode();
     _scrollController = ScrollController();
     _scrollController.addListener((){
-      print(_scrollController.position.pixels);
+      //print(_scrollController.position.pixels);
     });
   }
 
@@ -265,7 +289,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
                     ),
                   floatingActionButton: FloatingActionButton(
                     onPressed: () {
-                      jumpToMeasure(9 - 1);
+                      jumpToMeasure(11 - 1);
                     },
                     child: const Icon(Icons.arrow_upward),
                     ),
