@@ -56,7 +56,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         print("All input devices: ${devs.toString()}");
 
         const config =
-            RecordConfig(encoder: encoder, sampleRate: 20480, numChannels: 1);
+            RecordConfig(encoder: encoder, sampleRate: 10000, numChannels: 1);
 
         await recordStream(_audioRecorder, config);
 
