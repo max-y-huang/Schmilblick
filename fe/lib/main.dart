@@ -235,12 +235,13 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         if (minMaxY.minimumY < minY || minY == -1) minY = minMaxY.minimumY;
       }
       
-      final double midY = (maxY + minY) / 2;
+      // final double midY = (maxY + minY) / 2;
       print('minY: $minY');
       print('maxY: $maxY');
-      print('midY: $midY');
+      // print('midY: $midY');
       final int firstMeasureId = _getFirstMeasureId(stafflineElements[i]);
-      groups.add(GroupInfo(firstMeasureId, midY));
+      // groups.add(GroupInfo(firstMeasureId, midY));
+      groups.add(GroupInfo(firstMeasureId, minY));
     }
 
     groups.sort((group1Info, group2Info) => group1Info.startingMeasure.compareTo(group2Info.startingMeasure));
@@ -253,7 +254,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   void jumpToMeasure(int measureNumber) {
     int groupNumber = _getGroupForMeasure(measureNumber);
-    final double offset = _height * 1/3;
+    final double offset = _height * 1/8;
     print('offset $offset');
     double yCoord = groups[groupNumber].equatorY - offset;
     double maxScroll = _scrollController.position.maxScrollExtent;
