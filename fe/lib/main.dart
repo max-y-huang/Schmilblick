@@ -52,7 +52,7 @@ class MinMaxYCoords {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
+  final uri = 'https://464d9801274c1a.lhr.life'; // Replace this with localhost.run uri
   late int _width;
   late int _height;
   late Future<SvgPicture> _svgs;
@@ -67,7 +67,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
-    const filename = "Emerald_Moonlight.mxl";
+    const filename = "emerald_moonlight.mxl";
     final musicxmlBytes = (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes, filename: filename));
 
@@ -167,9 +167,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     var maxY = -1.0;
     for (final measureElement in measureElements) {
       List<XmlElement> measureStaffLines = _getAllChildElements(measureElement, _isLine);
-    for (final line in measureStaffLines) {
-      final double y = _getYCoord(line.getAttribute("d")!);
-      if (y < minY || minY == -1.0) minY = y;
+      for (final line in measureStaffLines) {
+        final double y = _getYCoord(line.getAttribute("d")!);
+        if (y < minY || minY == -1.0) minY = y;
         if (y > maxY) maxY = y;
       }
     }
@@ -235,12 +235,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         if (minMaxY.minimumY < minY || minY == -1) minY = minMaxY.minimumY;
       }
       
-      // final double midY = (maxY + minY) / 2;
       print('minY: $minY');
       print('maxY: $maxY');
-      // print('midY: $midY');
       final int firstMeasureId = _getFirstMeasureId(stafflineElements[i]);
-      // groups.add(GroupInfo(firstMeasureId, midY));
       groups.add(GroupInfo(firstMeasureId, minY));
     }
 
@@ -297,13 +294,13 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
               if (snapshot.hasData && orientation == Orientation.landscape) {
                 return Scaffold(
                   body: ListView(
-                      controller: _scrollController,
-                      scrollDirection: Axis.vertical,
-                      children: [snapshot.data!]
-                    ),
+                    controller: _scrollController,
+                    scrollDirection: Axis.vertical,
+                    children: [snapshot.data!]
+                  ),
                   floatingActionButton: FloatingActionButton(
                     onPressed: () {
-                      jumpToMeasure(11 - 1);
+                      jumpToMeasure(59 - 1);
                     },
                     child: const Icon(Icons.arrow_upward),
                     ),
