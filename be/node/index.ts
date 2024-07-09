@@ -12,6 +12,24 @@ import { body, validationResult } from "express-validator";
 // @ts-ignore
 import zip from "express-easy-zip";
 
+/**
+  * Uses canvas.measureText to compute and return the width of the given text of given font in pixels.
+  * 
+  * @param {string} text The text to be rendered.
+  * @param {string} font The css font descriptor that text is to be rendered with (e.g. "bold 14px verdana").
+  * 
+  * @see https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript/21015393#21015393
+  */
+function getTextWidth(text: string, font: string) {
+  // re-use canvas object for better performance
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No 2d context");
+  context.font = font;
+  const metrics = context.measureText(text);
+  return metrics.width;
+}
+
 dotenv.config();
 
 const MIN_PAGE_WIDTH = 600;
@@ -52,6 +70,29 @@ app.post(
         get: () => pageWidth,
       },
     });
+
+    const oldCreateElementNS = document.createElementNS.bind(document);
+    document.createElementNS = ((namespaceURI: string, qualifiedName: string) => {
+      if (namespaceURI === "http://www.w3.org/2000/svg" && qualifiedName === "text") {
+        const originalTextElem = oldCreateElementNS(namespaceURI, qualifiedName);
+
+        return Object.defineProperties(originalTextElem, {
+          getBBox: {
+            value: () => {
+              const width = getTextWidth(originalTextElem.textContent ?? "", "13pt Times New Roman");
+              return {
+                x: 0,
+                y: 0,
+                width,
+                height: 0,
+              };
+            }
+          }
+        });
+      } else {
+        return oldCreateElementNS(namespaceURI, qualifiedName);
+      }
+    }) as typeof document.createElementNS;
 
     const osmd = new OpenSheetMusicDisplay(container, {
       autoResize: false,
