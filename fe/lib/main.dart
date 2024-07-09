@@ -44,6 +44,13 @@ class GroupInfo {
   GroupInfo(this.startingMeasure, this.equatorY);    
 }
 
+class MinMaxYCoords {
+  double minimumY;
+  double maximumY;
+
+  MinMaxYCoords(this.minimumY, this.maximumY);
+}
+
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
@@ -86,6 +93,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     Size size = view.physicalSize / view.devicePixelRatio;
     _width = size.width.toInt();
     _height = size.height.toInt();
+    print("Width: $_width, Height: $_height");
   }
 
   // Determine if elem is a 'measure' element e.g.
@@ -143,24 +151,29 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     return double.parse(y1!);
   }
   
-  // Get the y coordinate of a 'staffline' element. This means getting the y coordinate of the first line 
-  //  of any measure on the staff. "First" line means the top line (i.e. lowest y value line).
+  // Get the minimum and maximum y-coordinates of a 'staffline' element. This means getting the 
+  //  minimum and maximum y-coordinates of all staff lines and ledger lines of every measure.
   // e.g. stafflineElement:
   //  <g class="staffline" id="Violin0-1">
   //     <g class="vf-measure" id="5">...</g>
   //     <g class="vf-measure" id="6">...</g>
   //    ...
   //  </g>
-  double _getStafflineY(XmlElement stafflineElement) {
-    XmlElement? measureElement = _getChildElement(stafflineElement, _isMeasure);
-    if (measureElement == null) throw "No measures found?!";
-    List<XmlElement> measureStaffLines = _getAllChildElements(measureElement, _isLine);
+  MinMaxYCoords _getStafflineMinMaxY(XmlElement stafflineElement) {
+    List<XmlElement> measureElements = _getAllChildElements(stafflineElement, _isMeasure);
+    if (measureElements.isEmpty) throw "No measures found?!";
+
     var minY = -1.0;
+    var maxY = -1.0;
+    for (final measureElement in measureElements) {
+      List<XmlElement> measureStaffLines = _getAllChildElements(measureElement, _isLine);
     for (final line in measureStaffLines) {
       final double y = _getYCoord(line.getAttribute("d")!);
       if (y < minY || minY == -1.0) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
-    return minY;
+    return MinMaxYCoords(minY, maxY);
   }
 
   // Get the Id of the first measure in the 'staffline' element. See _getStafflineY documentation for
@@ -217,9 +230,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       double maxY = -1;
       double minY = -1;
       for (var j = 0; j < linesPerGroup; ++j) {
-        final y = _getStafflineY(stafflineElements[i + j]);
-        if (y > maxY) maxY = y;
-        if (y < minY || minY == -1) minY = y;
+        final minMaxY = _getStafflineMinMaxY(stafflineElements[i + j]);
+        if (minMaxY.maximumY > maxY) maxY = minMaxY.maximumY;
+        if (minMaxY.minimumY < minY || minY == -1) minY = minMaxY.minimumY;
       }
       
       final double midY = (maxY + minY) / 2;
@@ -249,7 +262,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     if (yCoord > maxScroll) {
       _scrollController.jumpTo(maxScroll);
     } else if (yCoord < minScroll) {
-      _scrollController.jumpTo(0);
+      _scrollController.jumpTo(minScroll);
     } else {
       _scrollController.jumpTo(yCoord);
     }
