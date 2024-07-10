@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: ContinuousScoreSheet(),
+      home: PagedScoreSheet(),
     );
   }
 }
@@ -52,7 +52,7 @@ class MinMaxYCoords {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'https://464d9801274c1a.lhr.life'; // Replace this with localhost.run uri
+  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
   late int _height;
   late Future<SvgPicture> _svgs;
@@ -67,7 +67,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
-    const filename = "emerald_moonlight.mxl";
+    const filename = "happy_birthday.mxl";
     final musicxmlBytes = (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes, filename: filename));
 
