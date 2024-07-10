@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:xml/xml.dart';
 import 'audio_recorder.dart';
+import 'dart:math';
 
 void main() => runApp(const MyApp());
 
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: PagedScoreSheet(),
+      home: ContinuousScoreSheet(),
     );
   }
 }
@@ -60,6 +61,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   var groups = <GroupInfo>[];
   final RegExp lineCoordinatesRegex = RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
+  int _randomMeasure = 0;
+  final Random rand = Random();
 
   late final ScrollController _scrollController;
 
@@ -67,7 +70,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final request = http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
-    const filename = "happy_birthday.mxl";
+    const filename = "Emerald_Moonlight.mxl";
     final musicxmlBytes = (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes, filename: filename));
 
@@ -298,12 +301,19 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
                     scrollDirection: Axis.vertical,
                     children: [snapshot.data!]
                   ),
-                  floatingActionButton: FloatingActionButton(
+                  floatingActionButton: FloatingActionButton.extended(
                     onPressed: () {
-                      jumpToMeasure(59 - 1);
+                      print(_randomMeasure);
+                      jumpToMeasure(_randomMeasure);
+                      int randomMeasure = rand.nextInt(121);
+                      setState(() {
+                        _randomMeasure = randomMeasure;
+                      });
                     },
-                    child: const Icon(Icons.arrow_upward),
-                    ),
+                    label: Text('${_randomMeasure + 1}', style: new TextStyle(
+                      fontSize: 100.0,
+                    )),
+                  )
                 );
               } else {
                 return Placeholder();
@@ -328,6 +338,8 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   late final Future<Uint8List> _pdfBytes;
   late final PDFViewController _pdfViewController;
   late final List<int> _pageTable;
+  int _randomMeasure = 0;
+  final Random rand = Random();
 
   @override
   void initState() {
@@ -395,11 +407,19 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
               swipeHorizontal: true,
               onViewCreated: _initializeController,
             ),
-            floatingActionButton: FloatingActionButton(
+            floatingActionButton: FloatingActionButton.extended(
               onPressed: () {
-                jumpToMeasure(12);
+                print(_randomMeasure);
+                jumpToMeasure(_randomMeasure);
+                int randomMeasure = rand.nextInt(_pageTable.length);
+                setState(() {
+                  _randomMeasure = randomMeasure;
+                });
+                
               },
-              child: const Icon(Icons.arrow_upward),
+              label: Text('${_randomMeasure + 1}', style: new TextStyle(
+                fontSize: 100.0,
+              )),
             )
           );
         } else {
