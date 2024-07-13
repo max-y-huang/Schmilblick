@@ -70,6 +70,8 @@ flutter:
     - assets/happy_birthday.mxl
     - assets/happy_birthday.pdf
     - assets/joplin-scott-the-entertainer.pdf
+    - assets/emerald_moonlight.mxl
+    - assets/viva_la_vida.mxl
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
