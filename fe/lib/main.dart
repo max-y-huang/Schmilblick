@@ -57,6 +57,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
   var groups = <GroupInfo>[];
+
+  // lineCoordinatesRegex captures the coordinates from
+  //  a string like "M171.66015625 189L472.4196980046949 189".
+  //  So for the above example, we capture the following:
+  //    x1 = 171.66015625, y1 = 189, x2 = 472.4196980046949, y2 = 189
+  //  Format: ?<x1> is an example of a named capture group
   final RegExp lineCoordinatesRegex =
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
@@ -67,6 +73,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
+    // TODO: Properly get the file instead of hardcoding a filename
     const filename = "viva_la_vida.mxl";
     final musicxmlBytes =
         (await rootBundle.load('assets/$filename')).buffer.asUint8List();
@@ -161,14 +168,14 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         _getAllChildElements(stafflineElement, _isMeasure);
     if (measureElements.isEmpty) throw "No measures found?!";
 
-    var minY = -1.0;
-    var maxY = -1.0;
+    var minY = double.maxFinite;
+    var maxY = -double.maxFinite;
     for (final measureElement in measureElements) {
       List<XmlElement> measureStaffLines =
           _getAllChildElements(measureElement, _isLine);
       for (final line in measureStaffLines) {
         final double y = _getYCoord(line.getAttribute("d")!);
-        if (y < minY || minY == -1.0) minY = y;
+        if (y < minY) minY = y;
         if (y > maxY) maxY = y;
       }
     }
@@ -228,12 +235,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         .length;
 
     for (var i = 0; i < stafflineElementsCount; i += linesPerGroup) {
-      double maxY = -1;
-      double minY = -1;
+      double maxY = -double.maxFinite;
+      double minY = double.maxFinite;
       for (var j = 0; j < linesPerGroup; ++j) {
         final minMaxY = _getStafflineMinMaxY(stafflineElements[i + j]);
         if (minMaxY.maximumY > maxY) maxY = minMaxY.maximumY;
-        if (minMaxY.minimumY < minY || minY == -1) minY = minMaxY.minimumY;
+        if (minMaxY.minimumY < minY) minY = minMaxY.minimumY;
       }
 
       final int firstMeasureId = _getFirstMeasureId(stafflineElements[i]);
@@ -289,6 +296,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
                         controller: _scrollController,
                         scrollDirection: Axis.vertical,
                         children: [snapshot.data!]),
+                    // TODO: Remove this button (it is for testing purposes only)
                     floatingActionButton: FloatingActionButton(
                       onPressed: () {
                         jumpToMeasure(75 - 1);
