@@ -97,7 +97,6 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     Size size = view.physicalSize / view.devicePixelRatio;
     _width = size.width.toInt();
     _height = size.height.toInt();
-    print("Width: $_width, Height: $_height");
   }
 
   // Determine if elem is a 'measure' element e.g.
@@ -227,12 +226,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         .where((line) => (line.getAttribute('class')!.contains('vf-measure') &&
             line.getAttribute('id') == '1'))
         .length;
-    print('linesPerGroup: $linesPerGroup');
-    print('stafflineElementsCount: $stafflineElementsCount');
 
     for (var i = 0; i < stafflineElementsCount; i += linesPerGroup) {
-      print('----------');
-      print('i: $i');
       double maxY = -1;
       double minY = -1;
       for (var j = 0; j < linesPerGroup; ++j) {
@@ -241,10 +236,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         if (minMaxY.minimumY < minY || minY == -1) minY = minMaxY.minimumY;
       }
 
-      print('minY: $minY');
-      print('maxY: $maxY');
       final int firstMeasureId = _getFirstMeasureId(stafflineElements[i]);
-      print('measureId: $firstMeasureId');
       groups.add(GroupInfo(firstMeasureId, minY));
     }
 
@@ -254,16 +246,11 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     for (var groupInfo in groups) {
       groupInfo.startingMeasure -= veryFirstMeasureId;
     }
-
-    for (final group in groups) {
-      print('start measure: ${group.startingMeasure}, minY: ${group.minY}');
-    }
   }
 
   void jumpToMeasure(int measureNumber) {
     int groupNumber = _getGroupForMeasure(measureNumber);
     final double offset = _height * 1 / 8;
-    print('offset $offset');
     double yCoord = groups[groupNumber].minY - offset;
     double maxScroll = _scrollController.position.maxScrollExtent;
     double minScroll = _scrollController.position.minScrollExtent;
@@ -275,10 +262,6 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     } else {
       _scrollController.jumpTo(yCoord);
     }
-
-    print("max extent ${_scrollController.position.maxScrollExtent}");
-    print("min extent ${_scrollController.position.minScrollExtent}");
-    print("height: $_height");
   }
 
   @override
@@ -288,9 +271,6 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _setupSvg();
     _setupContinuousMode();
     _scrollController = ScrollController();
-    _scrollController.addListener(() {
-      print(_scrollController.position.pixels);
-    });
   }
 
   @override
