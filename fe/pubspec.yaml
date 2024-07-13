@@ -69,6 +69,9 @@ flutter:
   assets:
     - assets/happy_birthday.mxl
     - assets/happy_birthday.pdf
+    - assets/happy_birthday.mxl
+    - assets/emerald_moonlight.pdf
+    - assets/emerald_moonlight.mxl
     - assets/joplin-scott-the-entertainer.pdf
     - assets/emerald_moonlight.mxl
     - assets/viva_la_vida.mxl
