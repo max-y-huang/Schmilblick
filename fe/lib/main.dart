@@ -54,6 +54,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   late int _width;
   late int _height;
+  final double _offsetRatio = 1 / 8;
   late Future<SvgPicture> _svgs;
   late Future<XmlDocument> _svgXml;
   var groups = <GroupInfo>[];
@@ -109,28 +110,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   // Determine if elem is a 'measure' element e.g.
   //  <g class="vf-measure" id="1">
   bool _isMeasure(XmlElement elem) {
-    if (elem.getAttribute('class') == null) {
-      return false;
-    } else if (elem.getAttribute('class')!.contains('vf-measure') &&
-        elem.getAttribute('id') != '-1') {
-      return true;
-    } else {
-      return false;
-    }
+    final classAttribute = elem.getAttribute('class');
+    return classAttribute != null &&
+        classAttribute.contains('vf-measure') &&
+        elem.getAttribute('id') != '-1';
   }
 
   // Determine if elem is a 'line' element e.g.
   //  <path stroke-width="1" fill="none" stroke="#000000" stroke-dasharray="none" d="M171.66015625 625.5999999999999L472.4196980046949 625.5999999999999"></path>
   bool _isLine(XmlElement elem) {
     final String? dAttribute = elem.getAttribute("d");
-    if (elem.name.local == "path" &&
+    return elem.name.local == "path" &&
         dAttribute != null &&
         elem.getAttribute("class") == null &&
-        lineCoordinatesRegex.hasMatch(dAttribute)) {
-      return true;
-    } else {
-      return false;
-    }
+        lineCoordinatesRegex.hasMatch(dAttribute);
   }
 
   // Return all child elements of elem for which the predicate returns true
@@ -187,12 +180,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   int _getFirstMeasureId(XmlElement stafflineElement) {
     List<XmlElement> measureElements =
         _getAllChildElements(stafflineElement, _isMeasure);
-    int minId = -1;
+    int minId = -100;
     for (final XmlElement measureElement in measureElements) {
       final idStr = measureElement.getAttribute("id");
       if (idStr == null) throw "Null measure id!";
       final id = int.parse(idStr);
-      if (id < minId || minId == -1) minId = id;
+      if (id < minId || minId == -100) minId = id;
     }
 
     return minId;
@@ -257,7 +250,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   void jumpToMeasure(int measureNumber) {
     int groupNumber = _getGroupForMeasure(measureNumber);
-    final double offset = _height * 1 / 8;
+    final double offset = _height * _offsetRatio;
     double yCoord = groups[groupNumber].minY - offset;
     double maxScroll = _scrollController.position.maxScrollExtent;
     double minScroll = _scrollController.position.minScrollExtent;
