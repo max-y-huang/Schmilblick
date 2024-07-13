@@ -4,13 +4,10 @@ import multer, { Multer } from "multer";
 import dotenv from "dotenv";
 import { OpenSheetMusicDisplay, MXLHelper } from "opensheetmusicdisplay";
 import jsdom from "jsdom";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import cors from "cors";
 import { body, validationResult } from "express-validator";
-// @ts-ignore
-import zip from "express-easy-zip";
+import compression from "compression";
+import { constants } from "node:zlib";
 
 /**
   * Uses canvas.measureText to compute and return the width of the given text of given font in pixels.
@@ -39,7 +36,7 @@ const upload: Multer = multer({ storage: multer.memoryStorage() });
 const port = process.env.NODE_PORT;
 
 app.use(cors());
-app.use(zip());
+app.use(compression({ level: constants.Z_BEST_COMPRESSION }));
 
 app.post(
   "/musicxml-to-svg",
@@ -116,30 +113,14 @@ app.post(
     await osmd.load(musicXMLString);
     osmd.render();
 
-    const svgElements = [...container.querySelectorAll("svg")].map((svg) => {
-      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      return svg.outerHTML;
-    });
+    // Because we're in OSMD endless mode, there should be only 1 SVG
+    const svg = container.querySelector("svg")!;
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    svg.removeAttribute("id");
+    const svgElement = svg.outerHTML;
 
-    const tmpdir = os.tmpdir();
-    const fileNames = svgElements.map((_, idx) => {
-      const name = `music_${idx}.svg`;
-      const filePath = path.join(tmpdir, name);
-      return { path: filePath, name };
-    });
-
-    const writeToFiles = svgElements.map((svg, idx) => {
-      return fs.writeFile(fileNames[idx].path, svg);
-    });
-    await Promise.all(writeToFiles);
-
-    // @ts-ignore
-    await res.zip({
-      files: fileNames,
-      filename: "music-xml-to-svgs.zip",
-    });
-
-    await Promise.all(fileNames.map(({ path }) => fs.unlink(path)));
+    res.send(svgElement);
+    res.flush();
   }
 );
 
