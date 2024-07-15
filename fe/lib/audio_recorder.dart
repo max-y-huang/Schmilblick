@@ -38,6 +38,80 @@ class Tuple<T, U> {
   Tuple(this.x, this.y);
 }
 
+double freqForNote(String? baseNote, int noteIndex) {
+  double A4 = 440.0;
+
+  Map<String, double> baseNotesFreq = {
+    "A2": A4 / 4,
+    "A3": A4 / 2,
+    "A4": A4,
+    "A5": A4 * 2,
+    "A6": A4 * 4
+  };
+
+  Map<String, double> scaleNotes = {
+    "C": -9.0,
+    "C#": -8.0,
+    "D": -7.0,
+    "D#": -6.0,
+    "E": -5.0,
+    "F": -4.0,
+    "F#": -3.0,
+    "G": -2.0,
+    "G#": -1.0,
+    "A": 1.0,
+    "A#": 2.0,
+    "B": 3.0,
+    "Cn": 4.0
+  };
+
+  List<int> scaleNotesIndex = List<int>.filled(14, 0);
+
+  for (int i = 0; i <= 13; i++) {
+    scaleNotesIndex[i] = i - 9;
+  }
+
+  int noteIndexValue = scaleNotesIndex[noteIndex];
+
+  double? freq0 = baseNotesFreq[baseNote];
+
+  double freq = freq0! * pow(twelfthRootOf2, noteIndex).toDouble();
+
+  return freq;
+}
+
+List<Tuple<String, double>> getAllNotesFreq() {
+  List<Tuple<String, double>> orderedNoteFreq =
+      List<Tuple<String, double>>.empty(growable: true);
+  List<String> orderedNotes = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B"
+  ];
+
+  for (int octaveIndex = 2; octaveIndex < 7; octaveIndex++) {
+    String baseNote = "A${octaveIndex}";
+    for (int noteIndex = 0; noteIndex < 12; noteIndex++) {
+      double noteFrequency = freqForNote(baseNote, noteIndex);
+      String noteName = "${orderedNotes[noteIndex]}$octaveIndex";
+      orderedNoteFreq.add(Tuple(noteName, noteFrequency));
+    }
+  }
+
+  return orderedNoteFreq;
+}
+
+List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
+
 class Recorder extends StatefulWidget {
   final void Function(String path) onStop;
 
@@ -165,77 +239,6 @@ class _RecorderStateRedo extends State<Recorder> {
     return outputFile.openWrite();
   }
 
-  double freqForNote(String? baseNote, int noteIndex) {
-    double A4 = 440.0;
-
-    Map<String, double> baseNotesFreq = {
-      "A2": A4 / 4,
-      "A3": A4 / 2,
-      "A4": A4,
-      "A5": A4 * 2,
-      "A6": A4 * 4
-    };
-
-    Map<String, double> scaleNotes = {
-      "C": -9.0,
-      "C#": -8.0,
-      "D": -7.0,
-      "D#": -6.0,
-      "E": -5.0,
-      "F": -4.0,
-      "F#": -3.0,
-      "G": -2.0,
-      "G#": -1.0,
-      "A": 1.0,
-      "A#": 2.0,
-      "B": 3.0,
-      "Cn": 4.0
-    };
-
-    List<int> scaleNotesIndex = List<int>.filled(14, 0);
-
-    for (int i = 0; i <= 13; i++) {
-      scaleNotesIndex[i] = i - 9;
-    }
-
-    int noteIndexValue = scaleNotesIndex[noteIndex];
-
-    double? freq0 = baseNotesFreq[baseNote];
-
-    double freq = freq0! * pow(twelfthRootOf2, noteIndex).toDouble();
-
-    return freq;
-  }
-
-  List<Tuple> getAllNotesFreq() {
-    List<Tuple> orderedNoteFreq = List<Tuple>.empty(growable: true);
-    List<String> orderedNotes = [
-      "C",
-      "C#",
-      "D",
-      "D#",
-      "E",
-      "F",
-      "F#",
-      "G",
-      "G#",
-      "A",
-      "A#",
-      "B"
-    ];
-
-    for (int octaveIndex = 2; octaveIndex < 7; octaveIndex++) {
-      String baseNote = "A${octaveIndex}";
-      for (int noteIndex = 0; noteIndex < 12; noteIndex++) {
-        double noteFrequency = freqForNote(baseNote, noteIndex);
-        String noteName = "${orderedNotes[noteIndex]}_$octaveIndex";
-        orderedNoteFreq.add(Tuple(noteName, noteFrequency));
-      }
-    }
-
-    return orderedNoteFreq;
-  }
-
   String findNearestNote(
       List<Tuple<String, double>> orderedNoteFreq, int freq) {
     String finalNoteName = "note_not_found";
@@ -271,7 +274,7 @@ class _RecorderStateRedo extends State<Recorder> {
   List<double> implementBandPassFilter(
       List<double> FFTData, int sampleRate, int lowerFreq, int higherFreq) {
     List<double> filteredFFTData = FFTData;
-    double fftResolution = sampleRate / (FFTData.length * 2);
+    double fftResolution = sampleRate / fixedListSize;
     int lowerBin = lowerFreq ~/ fftResolution;
     int higherBin = higherFreq ~/ fftResolution;
 
@@ -339,7 +342,7 @@ class _RecorderStateRedo extends State<Recorder> {
     return retArgs.sublist(0, numArgsAdded);
   }
 
-  List<Tuple> pitchSpectralHPS(List<double> X, double rms) {
+  List<Tuple<int, double>> pitchSpectralHPS(List<double> X, double rms) {
     // get every fourth sample (basically akin to downsampling)
     int iOrder = 4;
     int finalSizeOfAFHPS = fixedListSize ~/ iOrder;
@@ -347,7 +350,7 @@ class _RecorderStateRedo extends State<Recorder> {
     double fMin = 65.41; // frequency for C2 (the lowest we are willing to go)
 
     int kMin = (fMin / tSampleRate * 2 * (X.length - 1)).round();
-    print("kMin given: $kMin");
+    // print("kMin given: $kMin");
     List<double> afHps = X.sublist(0, finalSizeOfAFHPS);
 
     // print("afHPS initially: $afHps");
@@ -387,10 +390,12 @@ class _RecorderStateRedo extends State<Recorder> {
     List<int> freqIndexesOut = argWhere(rawFreqValues, noteThreshold);
     // print("Freq indexes out: $freqIndexesOut");
 
-    List<Tuple> freqsOutTmp = List<Tuple>.empty(growable: true);
+    List<Tuple<int, double>> freqsOutTmp =
+        List<Tuple<int, double>>.empty(growable: true);
 
     for (int i = 0; i < freqIndexesOut.length; i++) {
-      Tuple indexValue = Tuple(freqIndexesOut[i], rawFreqValues[i]);
+      Tuple<int, double> indexValue =
+          Tuple(freqIndexesOut[i], rawFreqValues[i]);
       freqsOutTmp.add(indexValue);
     }
     // sample return implementation
@@ -421,9 +426,9 @@ class _RecorderStateRedo extends State<Recorder> {
         stopWatch.start();
         final pcm16 = normalizedList(buffer.data!.buffer.asInt16List(), 32768);
 
-        print("PCM 16: $pcm16");
-        print("Min: ${pcm16.reduce(min)}");
-        print("Max: ${pcm16.reduce(max)}");
+        // print("PCM 16: $pcm16");
+        // print("Min: ${pcm16.reduce(min)}");
+        // print("Max: ${pcm16.reduce(max)}");
 
         List<double> windowedHamming = Window.hanning(pcm16.length);
         List<double> windowedResult = List<double>.filled(pcm16.length, 0);
@@ -439,22 +444,30 @@ class _RecorderStateRedo extends State<Recorder> {
         List<double> fftResult = performFFT(windowedResult);
         // print("FFT Result: $fftResult");
         // print("--------////---------");
-        // List<double> fftFiltered = implementBandPassFilter(
-        //     fftResult, tSampleRate, lowerFrequency, higherFrequency);
+        List<double> fftFiltered = implementBandPassFilter(
+            fftResult, tSampleRate, lowerFrequency, higherFrequency);
         // print("FFT Filtered: $fftFiltered");
         // print("--------////---------");
-        // double rmsThreshold = rmsSignalThreshold(fftFiltered);
-        double rmsThreshold = rmsSignalThreshold(fftResult);
+        double rmsThreshold = rmsSignalThreshold(fftFiltered);
+        // double rmsThreshold = rmsSignalThreshold(fftResult);
         // print("rmsThreshold: $rmsThreshold");
         // print("--------////---------");
 
-        // List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
-        List<Tuple> pHPS = pitchSpectralHPS(fftResult, rmsThreshold);
+        List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
+        // List<Tuple<int, double>> pHPS =
+        // pitchSpectralHPS(fftResult, rmsThreshold);
 
         // List<double> fftFiltered = implementBandPassFilter(
         //     fftResult, tSampleRate, lowerFrequency, higherFrequency);
         // sink.add(buffer.data!);
 
+        for (int i = 0; i < pHPS.length; i++) {
+          String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
+          print(
+              "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
+        }
+
+        print("--------//--------------");
         // print("Stopwatch elapsed: ${stopWatch.elapsedMilliseconds}");
         stopWatch.reset();
       }
