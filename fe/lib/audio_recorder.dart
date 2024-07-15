@@ -25,13 +25,16 @@ int flag = 0;
 int fixedListSize = 8192;
 int lowerFrequency = 50;
 int higherFrequency = 4500;
+
+double twelfthRootOf2 = pow(2, 1.0 / 12).toDouble();
+
 // two buffers to allow for possible switching
 List<double> primaryBuffer = List<double>.filled(fixedListSize, 0);
 List<double> secondaryBuffer = List<double>.filled(fixedListSize, 0);
 
-class Tuple {
-  int x;
-  double y;
+class Tuple<T, U> {
+  T x;
+  U y;
   Tuple(this.x, this.y);
 }
 
@@ -162,10 +165,97 @@ class _RecorderStateRedo extends State<Recorder> {
     return outputFile.openWrite();
   }
 
+  double freqForNote(String? baseNote, int noteIndex) {
+    double A4 = 440.0;
+
+    Map<String, double> baseNotesFreq = {
+      "A2": A4 / 4,
+      "A3": A4 / 2,
+      "A4": A4,
+      "A5": A4 * 2,
+      "A6": A4 * 4
+    };
+
+    Map<String, double> scaleNotes = {
+      "C": -9.0,
+      "C#": -8.0,
+      "D": -7.0,
+      "D#": -6.0,
+      "E": -5.0,
+      "F": -4.0,
+      "F#": -3.0,
+      "G": -2.0,
+      "G#": -1.0,
+      "A": 1.0,
+      "A#": 2.0,
+      "B": 3.0,
+      "Cn": 4.0
+    };
+
+    List<int> scaleNotesIndex = List<int>.filled(14, 0);
+
+    for (int i = 0; i <= 13; i++) {
+      scaleNotesIndex[i] = i - 9;
+    }
+
+    int noteIndexValue = scaleNotesIndex[noteIndex];
+
+    double? freq0 = baseNotesFreq[baseNote];
+
+    double freq = freq0! * pow(twelfthRootOf2, noteIndex).toDouble();
+
+    return freq;
+  }
+
+  List<Tuple> getAllNotesFreq() {
+    List<Tuple> orderedNoteFreq = List<Tuple>.empty(growable: true);
+    List<String> orderedNotes = [
+      "C",
+      "C#",
+      "D",
+      "D#",
+      "E",
+      "F",
+      "F#",
+      "G",
+      "G#",
+      "A",
+      "A#",
+      "B"
+    ];
+
+    for (int octaveIndex = 2; octaveIndex < 7; octaveIndex++) {
+      String baseNote = "A${octaveIndex}";
+      for (int noteIndex = 0; noteIndex < 12; noteIndex++) {
+        double noteFrequency = freqForNote(baseNote, noteIndex);
+        String noteName = "${orderedNotes[noteIndex]}_$octaveIndex";
+        orderedNoteFreq.add(Tuple(noteName, noteFrequency));
+      }
+    }
+
+    return orderedNoteFreq;
+  }
+
+  String findNearestNote(
+      List<Tuple<String, double>> orderedNoteFreq, int freq) {
+    String finalNoteName = "note_not_found";
+    double lastDistance = 1000000.0;
+    for (int i = 0; i < orderedNoteFreq.length; i++) {
+      double currentDistance = (orderedNoteFreq[i].y - freq).abs();
+      if (currentDistance < lastDistance) {
+        lastDistance = currentDistance;
+        finalNoteName = orderedNoteFreq[i].x;
+      } else if (currentDistance > lastDistance) {
+        break;
+      }
+    }
+    return finalNoteName;
+  }
+
   double rmsSignalThreshold(List<double> fftChunk) {
     double sum = 0;
     for (int i = 0; i < fftChunk.length; i++) {
-      sum += fftChunk[i] * fftChunk[i];
+      sum += pow(fftChunk[i], 2).toDouble();
     }
     double mean = sum / fftChunk.length;
 
@@ -306,6 +396,8 @@ class _RecorderStateRedo extends State<Recorder> {
     // sample return implementation
     return freqsOutTmp;
   }
+
+  // List<double
 
   List<double> normalizedList(List<int> pcmData, int maxThreshold) {
     List<double> pcmDataNorm = List<double>.filled(pcmData.length, 0);
