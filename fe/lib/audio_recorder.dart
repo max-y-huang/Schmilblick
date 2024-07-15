@@ -12,7 +12,7 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:flutter_sound_platform_interface/flutter_sound_recorder_platform_interface.dart';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:fftea/fftea.dart';
 
 // import 'audio_recorder_io.dart';
@@ -145,7 +145,7 @@ class _RecorderStateRedo extends State<Recorder> {
   String? _mPath;
 
   Future<void> _openRecorder() async {
-    var status = await Permission.microphone.request();
+    // var status = await Permission.microphone.request();
     // if (!status.isGranted) {
     //   print("Microphone permission is not granted!");
     //   throw RecordingPermissionException('Microphone permission not granted');
@@ -430,51 +430,51 @@ class _RecorderStateRedo extends State<Recorder> {
         // PCM is unsigned, need to convert to signed
         // print("Buffer data: ${buffer.data}");
         stopWatch.start();
-        // final pcm16 = normalizedList(buffer.data!.buffer.asInt16List(), 32768);
-        final pcm16 = buffer.data!.buffer.asInt16List();
+        final pcm16 = normalizedList(buffer.data!.buffer.asInt16List(), 32768);
+        // // final pcm16 = buffer.data!.buffer.asInt16List();
 
-        // print("PCM 16: $pcm16");
+        // // print("PCM 16: $pcm16");
 
-        // sink.add(buffer.data!.buffer.asInt16List());
-        // print("Min: ${pcm16.reduce(min)}");
-        // print("Max: ${pcm16.reduce(max)}");
+        // // sink.add(buffer.data!.buffer.asInt16List());
+        // // print("Min: ${pcm16.reduce(min)}");
+        // // print("Max: ${pcm16.reduce(max)}");
 
-        List<double> windowedHamming = Window.hanning(pcm16.length);
-        List<double> windowedResult = List<double>.filled(pcm16.length, 0);
-        // List<int> windowedResult = List<int>.filled(pcm16.length, 0);
+        // List<double> windowedHamming = Window.hanning(pcm16.length);
+        // List<double> windowedResult = List<double>.filled(pcm16.length, 0);
+        // // List<int> windowedResult = List<int>.filled(pcm16.length, 0);
 
-        // print("Length of pcm16: ${pcm16.length}");
-        // // // print("Buffer data: ${buffer.data!.length}");
-        for (int i = 0; i < pcm16.length; i++) {
-          windowedResult[i] = windowedHamming[i] * pcm16[i];
-        }
+        // // print("Length of pcm16: ${pcm16.length}");
+        // // // // print("Buffer data: ${buffer.data!.length}");
+        // for (int i = 0; i < pcm16.length; i++) {
+        //   windowedResult[i] = windowedHamming[i] * pcm16[i];
+        // }
 
-        // sink.add(windowedResult);
-        // print("Windowed result: $windowedResult");
+        // // sink.add(windowedResult);
+        // // print("Windowed result: $windowedResult");
 
-        // print("Windowed result: $windowedResult");
-        // print("--------////---------");
+        // // print("Windowed result: $windowedResult");
+        // // print("--------////---------");
 
-        List<double> fftResult = performFFT(windowedResult);
-        // print("FFT Result: $fftResult");
-        // print("--------////---------");
-        List<double> fftFiltered = implementBandPassFilter(
-            fftResult, tSampleRate, lowerFrequency, higherFrequency);
-        // print("FFT length: ${fftFiltered.length}");
-        // print("FFT Filtered: $fftFiltered");
-        print("--------////---------");
-        double rmsThreshold = rmsSignalThreshold(windowedResult);
-        // double rmsThreshold = rmsSignalThreshold(fftResult);
-        print("rmsThreshold: $rmsThreshold");
-        print("--------////---------");
-
-        // List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
-        // List<Tuple<int, double>> pHPS =
-        // pitchSpectralHPS(fftResult, rmsThreshold);
-
+        // List<double> fftResult = performFFT(windowedResult);
+        // // print("FFT Result: $fftResult");
+        // // print("--------////---------");
         // List<double> fftFiltered = implementBandPassFilter(
         //     fftResult, tSampleRate, lowerFrequency, higherFrequency);
-        // sink.add(buffer.data!);
+        // // print("FFT length: ${fftFiltered.length}");
+        // // print("FFT Filtered: $fftFiltered");
+        // print("--------////---------");
+        // double rmsThreshold = rmsSignalThreshold(windowedResult);
+        // // double rmsThreshold = rmsSignalThreshold(fftResult);
+        // print("rmsThreshold: $rmsThreshold");
+        // print("--------////---------");
+
+        // List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
+        // // List<Tuple<int, double>> pHPS =
+        // // pitchSpectralHPS(fftResult, rmsThreshold);
+
+        // // List<double> fftFiltered = implementBandPassFilter(
+        // //     fftResult, tSampleRate, lowerFrequency, higherFrequency);
+        // // sink.add(buffer.data!);
 
         // for (int i = 0; i < pHPS.length; i++) {
         //   String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
@@ -482,8 +482,8 @@ class _RecorderStateRedo extends State<Recorder> {
         //       "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
         // }
 
-        // print("--------//--------------");
-        // print("Stopwatch elapsed: ${stopWatch.elapsedMilliseconds}");
+        print("--------//--------------");
+        print("Stopwatch elapsed: ${stopWatch.elapsedMilliseconds}");
         stopWatch.reset();
       }
     });
@@ -493,7 +493,7 @@ class _RecorderStateRedo extends State<Recorder> {
       numChannels: 1,
       sampleRate: tSampleRate,
       enableVoiceProcessing: _mEnableVoiceProcessing,
-      bufferSize: 8192,
+      bufferSize: 2048,
     );
     setState(() {});
     _updateRecordState(_mRecorder!.recorderState);
