@@ -231,7 +231,8 @@ class _RecorderStateRedo extends State<Recorder> {
 
   Future<IOSink> createFile() async {
     var tempDir = await getTemporaryDirectory();
-    _mPath = '${tempDir.path}/flutter_sound_example.pcm';
+    _mPath = '${tempDir.path}/change_2.pcm';
+    print("What is the path: $_mPath");
     var outputFile = File(_mPath!);
     if (outputFile.existsSync()) {
       await outputFile.delete();
@@ -255,13 +256,15 @@ class _RecorderStateRedo extends State<Recorder> {
     return finalNoteName;
   }
 
-  double rmsSignalThreshold(List<double> fftChunk) {
+  double rmsSignalThreshold(List<double> chunk) {
     double sum = 0;
-    for (int i = 0; i < fftChunk.length; i++) {
-      sum += pow(fftChunk[i], 2).toDouble();
+    for (int i = 0; i < chunk.length; i++) {
+      sum += pow(chunk[i], 2).toDouble();
     }
-    double mean = sum / fftChunk.length;
-
+    print("Sum of the values: $sum");
+    print("Fft Chunk length: ${chunk.length}");
+    double mean = sum / chunk.length;
+    print("Mean: $mean");
     return sqrt(mean);
   }
 
@@ -278,8 +281,11 @@ class _RecorderStateRedo extends State<Recorder> {
     int lowerBin = lowerFreq ~/ fftResolution;
     int higherBin = higherFreq ~/ fftResolution;
 
+    // print("What lower bin: $lowerBin");
+    // print("What higher bin: $higherBin");
     for (int i = 0; i < FFTData.length; i++) {
       if (i < lowerBin || i > higherBin) {
+        // print("What was the index i: $i");
         filteredFFTData[i] = 0;
       }
     }
@@ -415,7 +421,7 @@ class _RecorderStateRedo extends State<Recorder> {
   Future<void> record() async {
     assert(_mRecorderIsInited && _mPlayer!.isStopped);
     var sink = await createFile();
-    var recordingDataController = StreamController<Food>();
+    StreamController<Food> recordingDataController = StreamController<Food>();
     _mRecordingDataSubscription =
         recordingDataController.stream.listen((buffer) {
       if (buffer is FoodData) {
@@ -424,19 +430,27 @@ class _RecorderStateRedo extends State<Recorder> {
         // PCM is unsigned, need to convert to signed
         // print("Buffer data: ${buffer.data}");
         stopWatch.start();
-        final pcm16 = normalizedList(buffer.data!.buffer.asInt16List(), 32768);
+        // final pcm16 = normalizedList(buffer.data!.buffer.asInt16List(), 32768);
+        final pcm16 = buffer.data!.buffer.asInt16List();
 
         // print("PCM 16: $pcm16");
+
+        // sink.add(buffer.data!.buffer.asInt16List());
         // print("Min: ${pcm16.reduce(min)}");
         // print("Max: ${pcm16.reduce(max)}");
 
         List<double> windowedHamming = Window.hanning(pcm16.length);
         List<double> windowedResult = List<double>.filled(pcm16.length, 0);
+        // List<int> windowedResult = List<int>.filled(pcm16.length, 0);
 
+        // print("Length of pcm16: ${pcm16.length}");
         // // // print("Buffer data: ${buffer.data!.length}");
         for (int i = 0; i < pcm16.length; i++) {
           windowedResult[i] = windowedHamming[i] * pcm16[i];
         }
+
+        // sink.add(windowedResult);
+        // print("Windowed result: $windowedResult");
 
         // print("Windowed result: $windowedResult");
         // print("--------////---------");
@@ -446,14 +460,15 @@ class _RecorderStateRedo extends State<Recorder> {
         // print("--------////---------");
         List<double> fftFiltered = implementBandPassFilter(
             fftResult, tSampleRate, lowerFrequency, higherFrequency);
+        // print("FFT length: ${fftFiltered.length}");
         // print("FFT Filtered: $fftFiltered");
-        // print("--------////---------");
-        double rmsThreshold = rmsSignalThreshold(fftFiltered);
+        print("--------////---------");
+        double rmsThreshold = rmsSignalThreshold(windowedResult);
         // double rmsThreshold = rmsSignalThreshold(fftResult);
-        // print("rmsThreshold: $rmsThreshold");
-        // print("--------////---------");
+        print("rmsThreshold: $rmsThreshold");
+        print("--------////---------");
 
-        List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
+        // List<Tuple> pHPS = pitchSpectralHPS(fftFiltered, rmsThreshold);
         // List<Tuple<int, double>> pHPS =
         // pitchSpectralHPS(fftResult, rmsThreshold);
 
@@ -461,13 +476,13 @@ class _RecorderStateRedo extends State<Recorder> {
         //     fftResult, tSampleRate, lowerFrequency, higherFrequency);
         // sink.add(buffer.data!);
 
-        for (int i = 0; i < pHPS.length; i++) {
-          String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
-          print(
-              "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
-        }
+        // for (int i = 0; i < pHPS.length; i++) {
+        //   String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
+        //   print(
+        //       "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
+        // }
 
-        print("--------//--------------");
+        // print("--------//--------------");
         // print("Stopwatch elapsed: ${stopWatch.elapsedMilliseconds}");
         stopWatch.reset();
       }
@@ -478,7 +493,7 @@ class _RecorderStateRedo extends State<Recorder> {
       numChannels: 1,
       sampleRate: tSampleRate,
       enableVoiceProcessing: _mEnableVoiceProcessing,
-      bufferSize: 10000,
+      bufferSize: 8192,
     );
     setState(() {});
     _updateRecordState(_mRecorder!.recorderState);
@@ -488,6 +503,7 @@ class _RecorderStateRedo extends State<Recorder> {
     await _mRecorder!.stopRecorder();
     if (_mRecordingDataSubscription != null) {
       await _mRecordingDataSubscription!.cancel();
+      // await _mRecordingDataSubscription!.close();
       _mRecordingDataSubscription = null;
     }
     _mplaybackReady = true;
