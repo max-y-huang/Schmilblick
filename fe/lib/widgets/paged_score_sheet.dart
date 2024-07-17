@@ -18,7 +18,7 @@ class PagedScoreSheet extends StatefulWidget {
 class _PagedScoreSheetState extends State<PagedScoreSheet> {
   // When running this app, use the url provided by localhost.run
   final uri =
-      "http://localhost:3000"; // TODO: We will need to remove this at some point
+      "http://localhost:4000"; // TODO: We will need to remove this at some point
   final score = "emerald_moonlight";
   late final Future<Uint8List> _pdfBytes;
 
