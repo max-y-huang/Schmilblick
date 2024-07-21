@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_turner/widgets/score_sheet.dart';
 import 'audio_recorder.dart';
-import 'package:smart_turner/widgets/continuous_score_sheet.dart';
-import 'package:smart_turner/widgets/paged_score_sheet.dart';
 
 void main() => runApp(const MyApp());
 
@@ -17,7 +16,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: const PagedScoreSheet(),
+      home: const ScoreSheetDisplay(),
     );
   }
 }
