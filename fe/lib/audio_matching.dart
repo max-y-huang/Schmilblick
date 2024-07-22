@@ -12,6 +12,7 @@ int contour_matching(List<int> src, List<int> dst) {
 
   int m = src.length + 1;
   int n = dst.length + 1;
+  // dp[i][j] represents the cost from src's tail with length i to dst's tail with length j
   var dp = List<List<int>>.generate(m, (i) => List.generate(n, (j) => 0));
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
