@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 import 'dart:async';
 import 'dart:convert';
@@ -30,13 +31,24 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
-  late int _width;
-  late int _height;
+  final uri = 'https://3cc93bb84a3456.lhr.life'; // Replace this with localhost.run uri
   final double _offsetRatio = 1 / 8;
-  late Future<SvgPicture> _svgs;
-  late Future<XmlDocument> _svgXml;
-  var groups = <GroupInfo>[];
+
+  late Orientation _orientation;
+  Map<Orientation, int> _width = {};
+  Map<Orientation, int> _height = {};
+  Map<Orientation, Completer<SvgPicture>> _svgPictures = {
+    Orientation.portrait: Completer(),
+    Orientation.landscape: Completer(),
+  };
+  Map<Orientation, Completer<XmlDocument>> _svgXmls = {
+    Orientation.portrait: Completer(),
+    Orientation.landscape: Completer(),
+  };
+  Map<Orientation, List<GroupInfo>> _groupInfos = {
+    Orientation.portrait: [],
+    Orientation.landscape: [],
+  };
 
   // lineCoordinatesRegex captures the coordinates from
   //  a string like "M171.66015625 189L472.4196980046949 189".
@@ -67,23 +79,32 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   }
 
   void _setupSvg() {
-    final response = _getSvgLinks(_width);
-    final svgDocument =
-        response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
-    final svgPicture =
-        response.then((body) => SvgPicture.memory(body.bodyBytes));
+    for (final orient in Orientation.values) {
+      final response = _getSvgLinks(_width[orient]!);
+      final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
+      final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
 
-    setState(() {
-      _svgs = svgPicture;
-    });
-    _svgXml = svgDocument;
+      setState(() {
+        _svgPictures[orient]!.complete(svgPicture);
+      });
+      _svgXmls[orient]!.complete(svgDocument);
+    };
   }
 
-  void _setWidth() {
+  void _setDimensions() {
     FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
     Size size = view.physicalSize / view.devicePixelRatio;
-    _width = size.width.toInt();
-    _height = size.height.toInt();
+
+    final width = size.width.toInt();
+    final height = size.height.toInt();
+
+    final minDimension = min(width, height);
+    final maxDimension = max(width, height);
+
+    _width[Orientation.portrait] = minDimension;
+    _height[Orientation.portrait] = maxDimension;
+    _width[Orientation.landscape] = maxDimension;
+    _height[Orientation.landscape] = minDimension;
   }
 
   // Determine if elem is a 'measure' element e.g.
@@ -172,6 +193,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   // Given a measureId, return the Group the measure would belong to
   int _getGroupForMeasure(int measureId) {
+    final groups = _groupInfos[_orientation]!;
     var left = 0;
     var right = groups.length;
     var groupCount = groups.length;
@@ -194,7 +216,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   }
 
   void _setupContinuousMode() async {
-    final svgXml = await _svgXml;
+    for (final orient in Orientation.values) {
+      _svgXmls[orient]!.future.then((xml) => _parseSvgXml(xml, _groupInfos[orient]!));
+    }
+  }
+
+  void _parseSvgXml(XmlDocument svgXml, List<GroupInfo> groups) async {
     var stafflineElements = svgXml
         .findAllElements("g")
         .where((line) => line.getAttribute('class') == 'staffline')
@@ -228,8 +255,12 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   }
 
   void jumpToMeasure(int measureNumber) {
+    final height = _height[_orientation]!;
+    final groups = _groupInfos[_orientation]!;
+
     int groupNumber = _getGroupForMeasure(measureNumber);
-    final double offset = _height * _offsetRatio;
+    final double offset = height * _offsetRatio;
+
     double yCoord = groups[groupNumber].minY - offset;
     double maxScroll = _scrollController.position.maxScrollExtent;
     double minScroll = _scrollController.position.minScrollExtent;
@@ -246,7 +277,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   @override
   void initState() {
     super.initState();
-    _setWidth();
+    _setDimensions();
     _setupSvg();
     _setupContinuousMode();
     _scrollController = ScrollController();
@@ -254,32 +285,37 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return OrientationBuilder(
-        builder: (BuildContext context, Orientation orientation) {
-      return Container(
-          color: Colors.white,
-          child: FutureBuilder(
-              future: _svgs,
-              builder:
-                  (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
-                if (snapshot.hasData && orientation == Orientation.landscape) {
-                  return Scaffold(
-                    body: ListView(
-                        controller: _scrollController,
-                        scrollDirection: Axis.vertical,
-                        children: [snapshot.data!]),
-                    // TODO: Remove this button (it is for testing purposes only)
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: () {
-                        jumpToMeasure(75 - 1);
-                      },
-                      child: const Icon(Icons.arrow_upward),
-                    ),
-                  );
-                } else {
-                  return Placeholder();
-                }
-              }));
-    });
+    return Container(
+      color: Colors.white,
+      child: OrientationBuilder(
+        builder: (context, orientation) {
+          _orientation = orientation;
+
+          return FutureBuilder(
+            future: _svgPictures[orientation]!.future,
+            builder: (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
+              if (snapshot.hasData) {
+                return Scaffold(
+                  body: ListView(
+                    controller: _scrollController,
+                    scrollDirection: Axis.vertical,
+                    children: [snapshot.data!]
+                  ),
+                  // TODO: Remove this button (it is for testing purposes only)
+                  floatingActionButton: FloatingActionButton(
+                    onPressed: () {
+                      jumpToMeasure(75 - 1);
+                    },
+                    child: const Icon(Icons.arrow_upward),
+                  ),
+                );
+              } else {
+                return Placeholder();
+              }
+            }
+          );
+        }
+      )
+    );
   }
 }
