@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:smart_turner/backend_helpers.dart';
 
 class PagedScoreSheet extends StatefulWidget {
   const PagedScoreSheet({super.key});
@@ -46,24 +45,8 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
     });
   }
 
-  Future<http.Response> _compileMxl() async {
-    final request =
-        http.MultipartRequest('POST', Uri.parse('$uri/compile-mxl'));
-
-    final musicxmlBytes =
-        (await rootBundle.load('assets/$score.mxl')).buffer.asUint8List();
-    request.files.add(
-        http.MultipartFile.fromBytes('file', musicxmlBytes, filename: score));
-
-    final streamResponse = await request.send();
-    final response = await http.Response.fromStream(streamResponse);
-
-    return response;
-  }
-
   void _extractCompiledMxlInformation() async {
-    final response = await _compileMxl();
-    final resJson = jsonDecode(response.body) as Map<String, dynamic>;
+    final resJson = await getCompiledMxlAsMap();
     final parts = resJson["parts"] as Map<String, dynamic>;
     final firstPart = parts.keys.first;
     final pageTableDyn = parts[firstPart]["page_table"] as List<dynamic>;
