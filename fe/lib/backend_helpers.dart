@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 
 // TODO: add argument for the MXL file to be parsed
 Future<http.Response> compileMxl() async {
-  const uri = "https://cf2957d893188a.lhr.life";
+  const uri = "http://localhost:4000";
   const score = "emerald_moonlight";
   final request = http.MultipartRequest('POST', Uri.parse('$uri/compile-mxl'));
 
@@ -19,9 +18,4 @@ Future<http.Response> compileMxl() async {
   final response = await http.Response.fromStream(streamResponse);
 
   return response;
-}
-
-Future<Map<String, dynamic>> getCompiledMxlAsMap() async {
-  final response = await compileMxl();
-  return jsonDecode(response.body) as Map<String, dynamic>;
 }

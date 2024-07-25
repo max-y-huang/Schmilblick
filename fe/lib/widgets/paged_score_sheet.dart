@@ -5,7 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:smart_turner/backend_helpers.dart';
+import 'package:provider/provider.dart';
+import 'package:smart_turner/compiled_mxl_model.dart';
 
 class PagedScoreSheet extends StatefulWidget {
   const PagedScoreSheet({super.key});
@@ -30,7 +31,10 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   @override
   void initState() {
     super.initState();
-    _extractCompiledMxlInformation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractCompiledMxlInformation();
+    });
+
     _getFile();
   }
 
@@ -46,7 +50,8 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   }
 
   void _extractCompiledMxlInformation() async {
-    final resJson = await getCompiledMxlAsMap();
+    CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
+    final resJson = compiledMxl.compiledMxlOutput;
     final parts = resJson["parts"] as Map<String, dynamic>;
     final firstPart = parts.keys.first;
     final pageTableDyn = parts[firstPart]["page_table"] as List<dynamic>;
