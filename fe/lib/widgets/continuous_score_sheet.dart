@@ -31,7 +31,7 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'https://da2ad50574a68a.lhr.life'; // Replace this with localhost.run uri
+  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   final double _offsetRatio = 1 / 8;
 
   Map<Orientation, int> _width = {};
