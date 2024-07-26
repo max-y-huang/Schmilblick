@@ -31,24 +31,29 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'https://3cc93bb84a3456.lhr.life'; // Replace this with localhost.run uri
+  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   final double _offsetRatio = 1 / 8;
 
-  late Orientation _orientation;
+  Orientation _orientation = Orientation.portrait;
   Map<Orientation, int> _width = {};
   Map<Orientation, int> _height = {};
-  Map<Orientation, Completer<SvgPicture>> _svgPictures = {
+  Map<Orientation, Completer<SvgPicture>> _svgPicturesFutures = {
     Orientation.portrait: Completer(),
     Orientation.landscape: Completer(),
   };
-  Map<Orientation, Completer<XmlDocument>> _svgXmls = {
+  Map<Orientation, Completer<XmlDocument>> _svgXmlsFutures = {
     Orientation.portrait: Completer(),
     Orientation.landscape: Completer(),
   };
+
+  Map<Orientation, SvgPicture> _svgPictures = {};
+  Map<Orientation, XmlDocument> _svgXmls = {};
   Map<Orientation, List<GroupInfo>> _groupInfos = {
     Orientation.portrait: [],
     Orientation.landscape: [],
   };
+  Map<Orientation, ScrollController> _scrollControllers = {};
+  int _orientationChangeMeasure = 0;
 
   // lineCoordinatesRegex captures the coordinates from
   //  a string like "M171.66015625 189L472.4196980046949 189".
@@ -58,15 +63,13 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final RegExp lineCoordinatesRegex =
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
-  late final ScrollController _scrollController;
-
   Future<http.Response> _getSvgLinks(int imageWidth) async {
     final request =
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
     // TODO: Properly get the file instead of hardcoding a filename
-    const filename = "viva_la_vida.mxl";
+    const filename = "emerald_moonlight.mxl";
     final musicxmlBytes =
         (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes,
@@ -84,10 +87,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
       final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
 
-      setState(() {
-        _svgPictures[orient]!.complete(svgPicture);
-      });
-      _svgXmls[orient]!.complete(svgDocument);
+      _svgPicturesFutures[orient]!.complete(svgPicture);
+      _svgXmlsFutures[orient]!.complete(svgDocument);
     };
   }
 
@@ -193,7 +194,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   // Given a measureId, return the Group the measure would belong to
   int _getGroupForMeasure(int measureId) {
-    final groups = _groupInfos[_orientation]!;
+    final orientation = MediaQuery.of(context).orientation;
+    final groups = _groupInfos[orientation]!;
     var left = 0;
     var right = groups.length;
     var groupCount = groups.length;
@@ -217,7 +219,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   void _setupContinuousMode() async {
     for (final orient in Orientation.values) {
-      _svgXmls[orient]!.future.then((xml) => _parseSvgXml(xml, _groupInfos[orient]!));
+      _svgXmlsFutures[orient]!.future.then((xml) => _parseSvgXml(xml, _groupInfos[orient]!));
     }
   }
 
@@ -261,17 +263,93 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     int groupNumber = _getGroupForMeasure(measureNumber);
     final double offset = height * _offsetRatio;
 
+    final scrollController = _scrollControllers[_orientation]!;
+
     double yCoord = groups[groupNumber].minY - offset;
-    double maxScroll = _scrollController.position.maxScrollExtent;
-    double minScroll = _scrollController.position.minScrollExtent;
+    double maxScroll = scrollController.position.maxScrollExtent;
+    double minScroll = scrollController.position.minScrollExtent;
 
     if (yCoord > maxScroll) {
-      _scrollController.jumpTo(maxScroll);
+      scrollController.jumpTo(maxScroll);
     } else if (yCoord < minScroll) {
-      _scrollController.jumpTo(minScroll);
+      scrollController.jumpTo(minScroll);
     } else {
-      _scrollController.jumpTo(yCoord);
+      scrollController.jumpTo(yCoord);
     }
+  }
+
+  void _assignFutures() async {
+    for (final orientation in Orientation.values) {
+      final picture = await _svgPicturesFutures[orientation]!.future;
+      final xml = await _svgXmlsFutures[orientation]!.future;
+      setState(() {
+        _svgPictures[orientation] = picture;
+        _svgXmls[orientation] = xml;
+      });
+    }
+  }
+
+  int _getGroupFromOffset(double offset, Orientation orientation) {
+    final groups = _groupInfos[orientation]!;
+    var left = 0;
+    var right = groups.length - 1;
+
+    while (left <= right) {
+      final mid = (left + right) ~/ 2;
+      final minY = groups[mid].minY;
+
+      if (offset == minY) {
+        return mid;
+      } else if (offset > minY) {
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    return left;
+  }
+
+  void _saveMeasure(ScrollPosition position, Orientation orientation) {
+    final prevGroupNumber = _getGroupFromOffset(position.pixels, orientation);
+    final prevOrientationGroups = _groupInfos[orientation]!;
+    final groupStartingMeasure = prevOrientationGroups[prevGroupNumber].startingMeasure;
+
+    _orientationChangeMeasure = groupStartingMeasure;
+    print("orientationChangeMeasure ${_orientationChangeMeasure}");
+  }
+
+  Orientation? _prevOrientation = null;
+  bool handleScrollMetricsNotification(ScrollMetricsNotification notification) {
+    print("handleScrollMeticsNotification called");
+    if (_prevOrientation != null && _prevOrientation != _orientation) {
+      final height = _height[_orientation]!;
+      final groups = _groupInfos[_orientation]!;
+
+      int groupNumber = _getGroupForMeasure(_orientationChangeMeasure);
+      final double offset = height * _offsetRatio;
+
+      double yCoord = groups[groupNumber].minY - offset;
+
+      print("hasContentDimensions ${notification.metrics.hasContentDimensions}");
+
+      if (notification.metrics.hasContentDimensions) {
+        double maxScroll = notification.metrics.maxScrollExtent;
+        double minScroll = notification.metrics.minScrollExtent;
+
+        print("yCorrd ${yCoord} minScroll ${minScroll} maxScroll ${maxScroll}");
+
+        if (yCoord > maxScroll) {
+          yCoord = maxScroll;
+        } else if (yCoord < minScroll) {
+          yCoord = minScroll;
+        }
+        _scrollControllers[_orientation]!.jumpTo(yCoord);
+      }
+    }
+
+    _prevOrientation = _orientation;
+    return false;
   }
 
   @override
@@ -280,7 +358,18 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _setDimensions();
     _setupSvg();
     _setupContinuousMode();
-    _scrollController = ScrollController();
+    _assignFutures();
+    
+    _scrollControllers[Orientation.portrait] = ScrollController(
+      onDetach: (position) {
+        _saveMeasure(position, Orientation.portrait);
+      }
+    );
+    _scrollControllers[Orientation.landscape] = ScrollController(
+      onDetach: (position) {
+        _saveMeasure(position, Orientation.landscape);
+      }
+    );
   }
 
   @override
@@ -290,30 +379,24 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       child: OrientationBuilder(
         builder: (context, orientation) {
           _orientation = orientation;
-
-          return FutureBuilder(
-            future: _svgPictures[orientation]!.future,
-            builder: (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
-              if (snapshot.hasData) {
-                return Scaffold(
-                  body: ListView(
-                    controller: _scrollController,
-                    scrollDirection: Axis.vertical,
-                    children: [snapshot.data!]
-                  ),
-                  // TODO: Remove this button (it is for testing purposes only)
-                  floatingActionButton: FloatingActionButton(
-                    onPressed: () {
-                      jumpToMeasure(75 - 1);
-                    },
-                    child: const Icon(Icons.arrow_upward),
-                  ),
-                );
-              } else {
-                return Placeholder();
-              }
-            }
-          );
+          return _svgPictures.containsKey(orientation) ?
+            NotificationListener<ScrollMetricsNotification>(
+              onNotification: handleScrollMetricsNotification,
+              child: Scaffold(
+                body: ListView(
+                  controller: _scrollControllers[orientation]!,
+                  scrollDirection: Axis.vertical,
+                  children: [_svgPictures[orientation]!]
+                ),
+                // TODO: Remove this button (it is for testing purposes only)
+                floatingActionButton: FloatingActionButton(
+                  onPressed: () {
+                    jumpToMeasure(75 - 1);
+                  },
+                  child: const Icon(Icons.arrow_upward),
+                ),
+              ),
+            ) : Placeholder();
         }
       )
     );
