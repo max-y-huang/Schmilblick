@@ -31,29 +31,18 @@ class ContinuousScoreSheet extends StatefulWidget {
 }
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
-  final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
+  final uri = 'https://da2ad50574a68a.lhr.life'; // Replace this with localhost.run uri
   final double _offsetRatio = 1 / 8;
 
-  Orientation _orientation = Orientation.portrait;
   Map<Orientation, int> _width = {};
   Map<Orientation, int> _height = {};
-  Map<Orientation, Completer<SvgPicture>> _svgPicturesFutures = {
-    Orientation.portrait: Completer(),
-    Orientation.landscape: Completer(),
-  };
-  Map<Orientation, Completer<XmlDocument>> _svgXmlsFutures = {
-    Orientation.portrait: Completer(),
-    Orientation.landscape: Completer(),
-  };
 
   Map<Orientation, SvgPicture> _svgPictures = {};
   Map<Orientation, XmlDocument> _svgXmls = {};
-  Map<Orientation, List<GroupInfo>> _groupInfos = {
-    Orientation.portrait: [],
-    Orientation.landscape: [],
-  };
+  Map<Orientation, List<GroupInfo>> _groupInfos = {};
   Map<Orientation, ScrollController> _scrollControllers = {};
   int _orientationChangeMeasure = 0;
+  Orientation? _prevOrientation;
 
   // lineCoordinatesRegex captures the coordinates from
   //  a string like "M171.66015625 189L472.4196980046949 189".
@@ -79,17 +68,6 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final response = await http.Response.fromStream(streamResponse);
 
     return response;
-  }
-
-  void _setupSvg() {
-    for (final orient in Orientation.values) {
-      final response = _getSvgLinks(_width[orient]!);
-      final svgDocument = response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
-      final svgPicture = response.then((body) => SvgPicture.memory(body.bodyBytes));
-
-      _svgPicturesFutures[orient]!.complete(svgPicture);
-      _svgXmlsFutures[orient]!.complete(svgDocument);
-    };
   }
 
   void _setDimensions() {
@@ -217,13 +195,10 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     }
   }
 
-  void _setupContinuousMode() async {
-    for (final orient in Orientation.values) {
-      _svgXmlsFutures[orient]!.future.then((xml) => _parseSvgXml(xml, _groupInfos[orient]!));
-    }
-  }
-
-  void _parseSvgXml(XmlDocument svgXml, List<GroupInfo> groups) async {
+  // Create measure groups containing the starting measure index
+  // and the y-coordinates of the groups by parsing the SVG's XML
+  Future<List<GroupInfo>> _parseSvgXml(XmlDocument svgXml) async {
+    List<GroupInfo> groups = [];
     var stafflineElements = svgXml
         .findAllElements("g")
         .where((line) => line.getAttribute('class') == 'staffline')
@@ -254,41 +229,36 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     for (var groupInfo in groups) {
       groupInfo.startingMeasure -= veryFirstMeasureId;
     }
+
+    return groups;
   }
 
   void jumpToMeasure(int measureNumber) {
-    final height = _height[_orientation]!;
-    final groups = _groupInfos[_orientation]!;
+    final orientation = MediaQuery.of(context).orientation;
+    final height = _height[orientation]!;
+    final groups = _groupInfos[orientation]!;
 
     int groupNumber = _getGroupForMeasure(measureNumber);
     final double offset = height * _offsetRatio;
 
-    final scrollController = _scrollControllers[_orientation]!;
-
     double yCoord = groups[groupNumber].minY - offset;
-    double maxScroll = scrollController.position.maxScrollExtent;
-    double minScroll = scrollController.position.minScrollExtent;
+    
+    final metrics = _scrollControllers[orientation]!.position;
+    if (metrics.hasContentDimensions) {
+      double maxScroll = metrics.maxScrollExtent;
+      double minScroll = metrics.minScrollExtent;
 
-    if (yCoord > maxScroll) {
-      scrollController.jumpTo(maxScroll);
-    } else if (yCoord < minScroll) {
-      scrollController.jumpTo(minScroll);
-    } else {
-      scrollController.jumpTo(yCoord);
+      if (yCoord > maxScroll) {
+        yCoord = maxScroll;
+      } else if (yCoord < minScroll) {
+        yCoord = minScroll;
+      }
+      _scrollControllers[orientation]!.jumpTo(yCoord);
     }
   }
 
-  void _assignFutures() async {
-    for (final orientation in Orientation.values) {
-      final picture = await _svgPicturesFutures[orientation]!.future;
-      final xml = await _svgXmlsFutures[orientation]!.future;
-      setState(() {
-        _svgPictures[orientation] = picture;
-        _svgXmls[orientation] = xml;
-      });
-    }
-  }
-
+  // Given the scroll controller offset, determine the smallest
+  // measure group index that is greater than that offset
   int _getGroupFromOffset(double offset, Orientation orientation) {
     final groups = _groupInfos[orientation]!;
     var left = 0;
@@ -310,66 +280,67 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     return left;
   }
 
+  // Before the orientation change, save the topmost measure number and
+  // set that measure number on the new orientation's score sheet
   void _saveMeasure(ScrollPosition position, Orientation orientation) {
     final prevGroupNumber = _getGroupFromOffset(position.pixels, orientation);
     final prevOrientationGroups = _groupInfos[orientation]!;
     final groupStartingMeasure = prevOrientationGroups[prevGroupNumber].startingMeasure;
 
     _orientationChangeMeasure = groupStartingMeasure;
-    print("orientationChangeMeasure ${_orientationChangeMeasure}");
   }
 
-  Orientation? _prevOrientation = null;
+  // Every time the orientation changes, using the saved _orientationChangeMeasure
+  // jump to that measure on that orientation.
   bool handleScrollMetricsNotification(ScrollMetricsNotification notification) {
-    print("handleScrollMeticsNotification called");
-    if (_prevOrientation != null && _prevOrientation != _orientation) {
-      final height = _height[_orientation]!;
-      final groups = _groupInfos[_orientation]!;
-
-      int groupNumber = _getGroupForMeasure(_orientationChangeMeasure);
-      final double offset = height * _offsetRatio;
-
-      double yCoord = groups[groupNumber].minY - offset;
-
-      print("hasContentDimensions ${notification.metrics.hasContentDimensions}");
-
-      if (notification.metrics.hasContentDimensions) {
-        double maxScroll = notification.metrics.maxScrollExtent;
-        double minScroll = notification.metrics.minScrollExtent;
-
-        print("yCorrd ${yCoord} minScroll ${minScroll} maxScroll ${maxScroll}");
-
-        if (yCoord > maxScroll) {
-          yCoord = maxScroll;
-        } else if (yCoord < minScroll) {
-          yCoord = minScroll;
-        }
-        _scrollControllers[_orientation]!.jumpTo(yCoord);
-      }
+    final orientation = MediaQuery.of(context).orientation;
+    if (_prevOrientation != null && _prevOrientation != orientation) {
+      jumpToMeasure(_orientationChangeMeasure);
     }
 
-    _prevOrientation = _orientation;
+    _prevOrientation = orientation;
     return false;
+  }
+
+  // For each orientation, get the SVGs, parse the SVG XML,
+  // display the picture and create measure groups
+  void _setupSvgDocuments() async {
+    for (final orientation in Orientation.values) {
+      final response = await _getSvgLinks(_width[orientation]!);
+      final svgBody = response.bodyBytes;
+      final svgDocument = XmlDocument.parse(utf8.decode(svgBody));
+      final svgPicture = SvgPicture.memory(svgBody);
+      final groups = await _parseSvgXml(svgDocument);
+
+      setState(() {
+        _svgXmls[orientation] = svgDocument;
+        _svgPictures[orientation] = svgPicture;
+        _groupInfos[orientation] = groups;
+      });
+    };
+  }
+
+  void _setupScrollControllers() {
+    for (final orientation in Orientation.values) {
+      _scrollControllers[orientation] = ScrollController(
+        onDetach: (position) {
+          // Before the tablet rotates, you save the current
+          // measure in _orientationChangeMeasure to be set
+          // when the orientation change is complete and
+          // ScrollMetricsNotification is emitted 
+          // (see handleScrollMetricsNotification)
+          _saveMeasure(position, orientation);
+        }
+      );
+    }
   }
 
   @override
   void initState() {
     super.initState();
     _setDimensions();
-    _setupSvg();
-    _setupContinuousMode();
-    _assignFutures();
-    
-    _scrollControllers[Orientation.portrait] = ScrollController(
-      onDetach: (position) {
-        _saveMeasure(position, Orientation.portrait);
-      }
-    );
-    _scrollControllers[Orientation.landscape] = ScrollController(
-      onDetach: (position) {
-        _saveMeasure(position, Orientation.landscape);
-      }
-    );
+    _setupSvgDocuments();
+    _setupScrollControllers();  
   }
 
   @override
@@ -378,7 +349,6 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       color: Colors.white,
       child: OrientationBuilder(
         builder: (context, orientation) {
-          _orientation = orientation;
           return _svgPictures.containsKey(orientation) ?
             NotificationListener<ScrollMetricsNotification>(
               onNotification: handleScrollMetricsNotification,
