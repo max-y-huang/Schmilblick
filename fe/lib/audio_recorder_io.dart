@@ -94,11 +94,11 @@ List<Tuple<String, double>> getAllNotesFreq() {
 List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
 
 mixin AudioRecorderMixin {
-  final numberOfFFTBins = 8192;
-  final sampleRate = 10000;
+  final numberOfFFTBins = 16384;
+  final sampleRate = 20000;
 
   Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
-    final path = await _getPath();
+    final path = await _getPath(false);
 
     await recorder.start(config, path: path);
   }
@@ -166,7 +166,7 @@ mixin AudioRecorderMixin {
   }
 
   double noteThresholdScaledByHPS(double buffer_rms) {
-    double noteThreshold = 500 * (4 / 0.090) * buffer_rms;
+    double noteThreshold = 1000 * (4 / 0.090) * buffer_rms;
     return noteThreshold;
   }
 
@@ -212,7 +212,7 @@ mixin AudioRecorderMixin {
     print("Length of X: ${X.length}");
     int finalSizeOfAFHPS = ((numberOfFFTBins / 2) - 1) ~/ iOrder;
     print("Final size of AFHPS: $finalSizeOfAFHPS");
-    double fMin = 65.41;
+    double fMin = 65.41; // C2
 
     int kMin = (fMin / sampleRate * 2 * (X.length - 1)).round();
     print("kMin given: $kMin");
@@ -227,7 +227,6 @@ mixin AudioRecorderMixin {
       }
     }
 
-    // print("afHPS after: $afHps");
     double noteThreshold = noteThresholdScaledByHPS(rms);
 
     // print("AFHPS: ${afHps}");
@@ -253,12 +252,13 @@ mixin AudioRecorderMixin {
     }
 
     return freqsOutTmp;
-    // List<int> allFreqs = argWhere(afHps.sublist(kMin), noteThreshold);
   }
 
   Future<void> recordStream(AudioRecorder recorder, RecordConfig config) async {
-    final path = await _getPath();
+    final path = await _getPath(false);
+    final pathRawData = await _getPath(true);
     final file = File(path);
+    final fileRawData = File(pathRawData);
 
     final stream = await recorder.startStream(config);
 
@@ -319,30 +319,42 @@ mixin AudioRecorderMixin {
 
         List<Tuple> pHPS = pitchSpectralHPS(FFTFiltered, rmsThreshold);
 
+        Set<String> finalNotes = <String>{};
+
         for (int i = 0; i < pHPS.length; i++) {
           String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
           print(
               "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
+          finalNotes.add(noteName);
         }
+
+        print("Final Notes: $finalNotes");
+        print("To String: ${finalNotes.toString()}");
         // stopWatch.stop();
         // print("Elapsed time: ${stopWatch.elapsedMilliseconds}");
         // stopWatch.reset();
         // windowed PCM
-        // file.writeAsStringSync(absFFTResult.toString(), mode: FileMode.append);
+        file.writeAsStringSync(finalNotes.toString(), mode: FileMode.append);
+        fileRawData.writeAsStringSync(rawListIntPCM.toString(),
+            mode: FileMode.append);
       },
       onDone: () {
         print('End of stream. File written to $path.');
+        print('End of stream. File written to $pathRawData.');
       },
     );
   }
 
   void downloadWebData(String path) {}
 
-  Future<String> _getPath() async {
+  Future<String> _getPath(bool appendRawData) async {
     final dir = await getApplicationDocumentsDirectory();
+    final tool = appendRawData
+        ? "${DateTime.now().millisecondsSinceEpoch}_raw_data"
+        : DateTime.now().millisecondsSinceEpoch;
     return p.join(
       dir.path,
-      'audio_${DateTime.now().millisecondsSinceEpoch}.txt',
+      'audio_$tool.txt',
     );
   }
 }
