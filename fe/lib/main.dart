@@ -5,8 +5,8 @@ import 'audio_recorder.dart';
 import 'package:smart_turner/widgets/continuous_score_sheet.dart';
 import 'package:smart_turner/widgets/paged_score_sheet.dart';
 import 'compiled_mxl_model.dart';
-import 'audio_matching.dart';
 import 'process_notes.dart';
+import 'note_tests/note_tests.dart';
 
 void main() => runApp(
       MultiProvider(
@@ -33,37 +33,14 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
-    final int BUFFER = 5;
+    const int BUFFER = 5;
     CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
     await compiledMxl.getCompiledMxlAsMap();
-    List<int> src = processInput();
-    List<dynamic> processedMxl = processMxl(compiledMxl.compiledMxlOutput);
-    List<int> mxlIntervals = processedMxl[0];
-    List<int> measureNumbers = processedMxl[1];
-    final int sliceSize = src.length;
-    List<Slice> dstSlices = [];
-    for (int i = sliceSize - BUFFER; i <= sliceSize + BUFFER; i++) {
-      dstSlices.addAll(getNoteIntervalSlices(mxlIntervals, measureNumbers, i));
-    }
+    List<int> src = processInput(INPUT001);
+    List<Slice> dstSlices =
+        getAllSlices(compiledMxl.compiledMxlOutput, src.length, BUFFER);
 
-    final int numSlices = dstSlices.length;
-    int closestSliceMeasure = -1;
-    int minDist = -1;
-    for (int i = 0; i < numSlices; ++i) {
-      final int dist = contourMatching(src, dstSlices[i].intervals);
-      if (dist <= 5) {
-        print('-----------');
-        print(dist);
-        print(src);
-        print(dstSlices[i]);
-      }
-      if (dist < minDist || minDist == -1) {
-        minDist = dist;
-        closestSliceMeasure = dstSlices[i].measureNumber;
-      }
-    }
-    print('closestSliceMeasure: $closestSliceMeasure');
-    //contourMatching
+    int curMeasure = getCurrentMeasure(dstSlices, src);
   }
 
   @override
