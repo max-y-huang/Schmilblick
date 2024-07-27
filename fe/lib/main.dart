@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:smart_turner/widgets/upload_file_page.dart';
 import 'package:smart_turner/widgets/continuous_score_sheet.dart';
 import 'package:smart_turner/widgets/paged_score_sheet.dart';
 import 'package:smart_turner/widgets/score_sheet.dart';
@@ -28,34 +29,43 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _compileFuture = _initialize();
+    // _compileFuture = _initialize();
   }
 
-  Future<void> _initialize() async {
-    CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
-    await compiledMxl.getCompiledMxlAsMap();
-  }
+  // Future<void> _initialize() async {
+  //   CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
+  //   await compiledMxl.getCompiledMxlAsMap();
+  // }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-        future: _compileFuture,
-        builder: (BuildContext context, AsyncSnapshot snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
-          } else if (snapshot.hasError) {
-            return Text('Error: ${snapshot.error}');
-          } else {
-            return MaterialApp(
-              title: 'Flutter Demo',
-              theme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-                useMaterial3: true,
-              ),
-              home: const ScoreSheetDisplay(),
-            );
-          }
-        });
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
+        useMaterial3: true,
+      ),
+      home: const UploadFilePage(),
+    );
+
+    // return FutureBuilder(
+    //     future: _compileFuture,
+    //     builder: (BuildContext context, AsyncSnapshot snapshot) {
+    //       if (snapshot.connectionState == ConnectionState.waiting) {
+    //         return CircularProgressIndicator();
+    //       } else if (snapshot.hasError) {
+    //         return Text('Error: ${snapshot.error}');
+    //       } else {
+    //         return MaterialApp(
+    //           title: 'Flutter Demo',
+    //           theme: ThemeData(
+    //             colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
+    //             useMaterial3: true,
+    //           ),
+    //           home: const UploadFilePage(),
+    //         );
+    //       }
+    //     });
   }
 }
 
