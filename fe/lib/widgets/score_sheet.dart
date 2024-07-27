@@ -20,7 +20,13 @@ class _ScoreSheetDisplayState extends State<ScoreSheetDisplay> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: mode == ScoreSheetMode.paged ? PagedScoreSheet() : ContinuousScoreSheet(),
+      body: IndexedStack(
+        index: mode.index,
+        children: [
+          PagedScoreSheet(),
+          ContinuousScoreSheet(),
+        ],
+      ),
       bottomNavigationBar: BottomAppBar(
         child: FilledButton(
           child: mode == ScoreSheetMode.paged
