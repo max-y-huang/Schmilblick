@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_turner/compiled_mxl_model.dart';
+import 'package:smart_turner/uploaded_files_model.dart';
 
 class PagedScoreSheet extends StatefulWidget {
   const PagedScoreSheet({super.key});
@@ -20,7 +21,6 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   final uri =
       "http://localhost:4000"; // TODO: We will need to remove this at some point
   final score = "emerald_moonlight";
-  late final Future<Uint8List> _pdfBytes;
 
   late final PDFViewController _pdfViewController;
   late List<int> _pageTable;
@@ -34,8 +34,6 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _extractCompiledMxlInformation();
     });
-
-    _getFile();
   }
 
   // This widget is wrapped in a `Consumer<CompiledMxl>(...)`
@@ -46,18 +44,7 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   void didChangeDependencies() {
     print("Dependencies changed for pdf view!");
     super.didChangeDependencies();
-    _extractCompiledMxlInformation();
-  }
-
-  void _getFile() async {
-    // TODO: Turn the file into a backend call.
-    final pdfBytes = rootBundle
-        .load('assets/$score.pdf')
-        .then((file) => file.buffer.asUint8List());
-
-    setState(() {
-      _pdfBytes = pdfBytes;
-    });
+    // _extractCompiledMxlInformation();
   }
 
   void _extractCompiledMxlInformation() async {
@@ -88,36 +75,31 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CompiledMxl>(builder: (context, compiledMxl, child) {
+    return Consumer<UploadedFiles>(builder: (context, uploadedFiles, child) {
+      final pdfBytes = uploadedFiles.pdfFile?.bytes;
       return Container(
           color: Colors.white,
-          child: FutureBuilder(
-              future: _pdfBytes,
-              builder: (buildContext, snapshot) {
-                if (snapshot.hasData) {
-                  return Scaffold(
-                      body: PDFView(
-                        pdfData: snapshot.data,
-                        swipeHorizontal: true,
-                        onViewCreated: _initializeController,
-                      ),
-                      // TODO: Remove this button (testing purposes only)
-                      floatingActionButton: FloatingActionButton.extended(
-                        onPressed: () {
-                          jumpToMeasure(_randomMeasure);
-                          setState(() {
-                            _randomMeasure = rand.nextInt(_pageTable.length);
-                          });
-                        },
-                        label: Text('${_randomMeasure + 1}',
-                            style: const TextStyle(
-                              fontSize: 60.0,
-                            )),
-                      ));
-                } else {
-                  return Placeholder();
-                }
-              }));
+          child: pdfBytes == null ? Placeholder() :
+            Scaffold(
+              body: PDFView(
+                pdfData: pdfBytes,
+                swipeHorizontal: true,
+                onViewCreated: _initializeController,
+              ),
+              // TODO: Remove this button (testing purposes only)
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: () {
+                  jumpToMeasure(_randomMeasure);
+                  setState(() {
+                    _randomMeasure = rand.nextInt(_pageTable.length);
+                  });
+                },
+                label: Text('${_randomMeasure + 1}',
+                    style: const TextStyle(
+                      fontSize: 60.0,
+                    )),
+              ))
+      );
     });
   }
 }

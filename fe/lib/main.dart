@@ -41,9 +41,9 @@ class _MyAppState extends State<MyApp> {
       home: Consumer<UploadedFiles>(
         builder: (context, uploadedFiles, child) {
           if (uploadedFiles.bothFilesReady) {
-            return const Placeholder();
+            return const ScoreSheetDisplay();
           } else {
-            return UploadFilePage();
+            return const UploadFilePage();
           }
         },
       ),
