@@ -6,7 +6,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:provider/provider.dart';
+import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:xml/xml.dart';
 
 class GroupInfo {
@@ -53,16 +54,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
   Future<http.Response> _getSvgLinks(int imageWidth) async {
+    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+
     final request =
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
+    
+    final mxlFile = uploadedFiles.mxlFile;
+    final fileBytes = mxlFile?.bytes;
+    final fileName = mxlFile?.name;
 
-    // TODO: Properly get the file instead of hardcoding a filename
-    const filename = "emerald_moonlight.mxl";
-    final musicxmlBytes =
-        (await rootBundle.load('assets/$filename')).buffer.asUint8List();
-    request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes,
-        filename: filename));
+    request.files.add(http.MultipartFile.fromBytes(
+      'musicxml', fileBytes!,
+      filename: fileName!
+    ));
 
     final streamResponse = await request.send();
     final response = await http.Response.fromStream(streamResponse);

@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:smart_turner/widgets/upload_file_page.dart';
-import 'package:smart_turner/widgets/continuous_score_sheet.dart';
-import 'package:smart_turner/widgets/paged_score_sheet.dart';
 import 'package:smart_turner/widgets/score_sheet.dart';
 import 'audio_recorder.dart';
-import 'compiled_mxl_model.dart';
 
 void main() => runApp(
       MultiProvider(
@@ -48,25 +45,6 @@ class _MyAppState extends State<MyApp> {
         },
       ),
     );
-
-    // return FutureBuilder(
-    //     future: _compileFuture,
-    //     builder: (BuildContext context, AsyncSnapshot snapshot) {
-    //       if (snapshot.connectionState == ConnectionState.waiting) {
-    //         return CircularProgressIndicator();
-    //       } else if (snapshot.hasError) {
-    //         return Text('Error: ${snapshot.error}');
-    //       } else {
-    //         return MaterialApp(
-    //           title: 'Flutter Demo',
-    //           theme: ThemeData(
-    //             colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-    //             useMaterial3: true,
-    //           ),
-    //           home: const ScoreSheetDisplay(),
-    //         );
-    //       }
-    //     });
   }
 }
 

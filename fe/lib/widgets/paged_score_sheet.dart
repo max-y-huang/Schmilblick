@@ -1,12 +1,8 @@
-import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
-import 'package:smart_turner/compiled_mxl_model.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 
 class PagedScoreSheet extends StatefulWidget {
@@ -44,12 +40,12 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   void didChangeDependencies() {
     print("Dependencies changed for pdf view!");
     super.didChangeDependencies();
-    // _extractCompiledMxlInformation();
+    _extractCompiledMxlInformation();
   }
 
   void _extractCompiledMxlInformation() async {
-    CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
-    final resJson = compiledMxl.compiledMxlOutput;
+    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+    final resJson = uploadedFiles.compiledMxlOutput;
     final parts = resJson["parts"] as Map<String, dynamic>;
     final firstPart = parts.keys.first;
     final pageTableDyn = parts[firstPart]["page_table"] as List<dynamic>;
