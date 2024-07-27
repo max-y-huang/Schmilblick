@@ -4,3 +4,4 @@ in/
 out/
 
 .env
+.python-version

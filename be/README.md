@@ -1,74 +1,82 @@
 # Schmilblick Back-end
 
-## Python API Instructions
+## Setup
+
+### Requirements
+
+- Python 3.10 (e.g. with [pyenv](https://github.com/pyenv/pyenv))
+- [Pipenv](https://pipenv.pypa.io/en/latest/)
+- [Node.js](https://nodejs.org/en) (TODO: add version)
+
+In `/be`, run the following commands:
+
+```sh
+pipenv install
+npm install
+```
 
 Add the following line(s) to `.env`:
 
 ```
 PYTHON_PORT=<python_port>
+NODE_PORT=<node_port>
 ```
 
-Run the following command:
+## Testing
+
+Run the following commands _in parallel_:
 
 ```sh
-# --debug: run the app in debug mode
-./python/main.py [--debug]
+pipenv run dev
 ```
 
-Send a POST request to the following endpoint with the appropriate arguments:
+```sh
+npm run dev
+```
 
-```
-http://localhost:<python_port>/compile-mxl
-```
+The Python and Node APIs will run on ports `<python_port>` and `<node_port>` respectively (from [Setup](#setup)).
+
+## Endpoints
+
+### `/compile-mxl` (Python)
 
 | Argument | Type | Description                            |
 | -------- | ---- | -------------------------------------- |
 | `file`   | File | The compressed MusicXML file to parse. |
 
-### Output
+#### Example Output(s)
 
-#### On success:
-
-```json
+```jsonc
 // status: 2XX
 {
   "parts": {
-    "<part_id>": {
-      "name": "<part_name>",
+    // keys are part IDs
+    "P1": {
+      "name": "Piano",
       "notes": [
         {
-          "time": <seconds>,
-          "duration": <seconds>,
-          "pitch": <midi_pitch>
-        },
-        ...
-      ]
-    },
-    ...
+          "time": 0, // in seconds
+          "duration": 0.4, // in seconds
+          "pitch": 65, // in MIDI pitch
+          "measure": 0 // zero-indexed
+        }
+      ],
+      "page_table": [0, 0, 1, 1, 2] // maps measures to pages (both are zero-indexed)
+    }
   }
 }
 ```
 
-#### On failure:
-
-```json
+```jsonc
 // status: 4XX
 {
-  "message": "<error_message>"
+  "message": <error message>
 }
 ```
 
-## Node API Instructions
+## Miscellaneous
 
-Add the following line(s) to `.env`:
-
-```
-NODE_PORT=<node_port>
-```
-
-TODO: Add more instructions here.
-
-## MXL Compiler CLI Instructions
+### MXL Compiler CLI
 
 Run the following command:
 
@@ -77,8 +85,6 @@ Run the following command:
 # --file <score_path>: path to the compressed MusicXML file to parse
 ./python/compile-mxl-cli.py [--preview] --file <score_path>
 ```
-
-### Output
 
 The output will be the following files:
 

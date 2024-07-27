@@ -4,13 +4,28 @@ import multer, { Multer } from "multer";
 import dotenv from "dotenv";
 import { OpenSheetMusicDisplay, MXLHelper } from "opensheetmusicdisplay";
 import jsdom from "jsdom";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import cors from "cors";
 import { body, validationResult } from "express-validator";
-// @ts-ignore
-import zip from "express-easy-zip";
+import compression from "compression";
+import { constants } from "node:zlib";
+
+/**
+  * Uses canvas.measureText to compute and return the width of the given text of given font in pixels.
+  * 
+  * @param {string} text The text to be rendered.
+  * @param {string} font The css font descriptor that text is to be rendered with (e.g. "bold 14px verdana").
+  * 
+  * @see https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript/21015393#21015393
+  */
+function getTextWidth(text: string, font: string) {
+  // re-use canvas object for better performance
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No 2d context");
+  context.font = font;
+  const metrics = context.measureText(text);
+  return metrics.width;
+}
 
 dotenv.config();
 
@@ -21,7 +36,7 @@ const upload: Multer = multer({ storage: multer.memoryStorage() });
 const port = process.env.NODE_PORT;
 
 app.use(cors());
-app.use(zip());
+app.use(compression({ level: constants.Z_BEST_COMPRESSION }));
 
 app.post(
   "/musicxml-to-svg",
@@ -53,6 +68,29 @@ app.post(
       },
     });
 
+    const oldCreateElementNS = document.createElementNS.bind(document);
+    document.createElementNS = ((namespaceURI: string, qualifiedName: string) => {
+      if (namespaceURI === "http://www.w3.org/2000/svg" && qualifiedName === "text") {
+        const originalTextElem = oldCreateElementNS(namespaceURI, qualifiedName);
+
+        return Object.defineProperties(originalTextElem, {
+          getBBox: {
+            value: () => {
+              const width = getTextWidth(originalTextElem.textContent ?? "", "13pt Times New Roman");
+              return {
+                x: 0,
+                y: 0,
+                width,
+                height: 0,
+              };
+            }
+          }
+        });
+      } else {
+        return oldCreateElementNS(namespaceURI, qualifiedName);
+      }
+    }) as typeof document.createElementNS;
+
     const osmd = new OpenSheetMusicDisplay(container, {
       autoResize: false,
       backend: "svg",
@@ -75,30 +113,14 @@ app.post(
     await osmd.load(musicXMLString);
     osmd.render();
 
-    const svgElements = [...container.querySelectorAll("svg")].map((svg) => {
-      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      return svg.outerHTML;
-    });
+    // Because we're in OSMD endless mode, there should be only 1 SVG
+    const svg = container.querySelector("svg")!;
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    svg.removeAttribute("id");
+    const svgElement = svg.outerHTML;
 
-    const tmpdir = os.tmpdir();
-    const fileNames = svgElements.map((_, idx) => {
-      const name = `music_${idx}.svg`;
-      const filePath = path.join(tmpdir, name);
-      return { path: filePath, name };
-    });
-
-    const writeToFiles = svgElements.map((svg, idx) => {
-      return fs.writeFile(fileNames[idx].path, svg);
-    });
-    await Promise.all(writeToFiles);
-
-    // @ts-ignore
-    await res.zip({
-      files: fileNames,
-      filename: "music-xml-to-svgs.zip",
-    });
-
-    await Promise.all(fileNames.map(({ path }) => fs.unlink(path)));
+    res.send(svgElement);
+    res.flush();
   }
 );
 
