@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:smart_turner/widgets/upload_file_page.dart';
 import 'package:smart_turner/widgets/continuous_score_sheet.dart';
 import 'package:smart_turner/widgets/paged_score_sheet.dart';
@@ -11,7 +12,7 @@ import 'compiled_mxl_model.dart';
 void main() => runApp(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => CompiledMxl()),
+          ChangeNotifierProvider(create: (_) => UploadedFiles()),
         ],
         child: MyApp(),
       ),
@@ -24,18 +25,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late Future<void> _compileFuture;
-
   @override
   void initState() {
     super.initState();
-    // _compileFuture = _initialize();
   }
-
-  // Future<void> _initialize() async {
-  //   CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
-  //   await compiledMxl.getCompiledMxlAsMap();
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +38,15 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: const UploadFilePage(),
+      home: Consumer<UploadedFiles>(
+        builder: (context, uploadedFiles, child) {
+          if (uploadedFiles.bothFilesReady) {
+            return const Placeholder();
+          } else {
+            return UploadFilePage();
+          }
+        },
+      ),
     );
 
     // return FutureBuilder(
@@ -62,7 +63,7 @@ class _MyAppState extends State<MyApp> {
     //             colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
     //             useMaterial3: true,
     //           ),
-    //           home: const UploadFilePage(),
+    //           home: const ScoreSheetDisplay(),
     //         );
     //       }
     //     });
