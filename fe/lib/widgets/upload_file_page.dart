@@ -10,19 +10,17 @@ class UploadFilePage extends StatefulWidget {
 
 class _UploadFilePageState extends State<UploadFilePage> {
   Future<void> _pickFile() async {
+    print("Upload file from file system");
+
     FilePickerResult? result = await FilePicker.platform.pickFiles();
 
     if (result != null) {
       PlatformFile file = result.files.first;
       // Process the file (e.g., upload to a server or display information)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('File: ${file.name}')),
-      );
+      print('File: ${file.name}');
     } else {
       // User canceled the picker
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('File selection canceled')),
-      );
+      print('File selection canceled');
     }
   }
 
