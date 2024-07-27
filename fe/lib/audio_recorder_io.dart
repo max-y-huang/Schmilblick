@@ -97,38 +97,36 @@ List<Tuple<String, double>> getAllNotesFreq() {
 
 List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
 
+const bufferTime = 10000;
+Stopwatch stopwatch = Stopwatch();
+
+// give the list of notes and timestamps for each note
+List<List<int>> listNotes = List<List<int>>.empty(growable: true);
+List<int> listTimeStamps = List<int>.empty(growable: true);
+
+//-----------------------------------------------------------------
+// NEEDED FOR STREAMING FUNCTION
+
+List<List<int>> getAudioStream() {
+  int time = stopwatch.elapsedMilliseconds;
+  for (int i = 0; i < listNotes.length; i++) {
+    if (time > listTimeStamps[i] + bufferTime) {
+      listNotes.removeAt(i);
+      listTimeStamps.removeAt(i);
+      i--;
+    }
+  }
+  return listNotes;
+}
+
 mixin AudioRecorderMixin {
   final numberOfFFTBins = 8192;
-  final bufferTime = 10000;
-  Stopwatch stopwatch = Stopwatch();
-
-  // give the list of notes and timestamps for each note
-  List<List<int>> listNotes = List<List<int>>.empty(growable: true);
-  List<int> listTimeStamps = List<int>.empty(growable: true);
-
   //-----------------------------------------------------------------
-  // NEEDED FOR STREAMING FUNCTION
-
   void addToListNotes(List<int> noteGiven) {
     int time = stopwatch.elapsedMilliseconds;
     listNotes.add(noteGiven);
     listTimeStamps.add(time);
   }
-
-  List<List<int>> getList() {
-    int time = stopwatch.elapsedMilliseconds;
-    for (int i = 0; i < listNotes.length; i++) {
-      if (time > listTimeStamps[i] + bufferTime) {
-        listNotes.removeAt(i);
-        listTimeStamps.removeAt(i);
-        i--;
-      }
-    }
-    print("List notes currently: $listNotes");
-    return listNotes;
-  }
-
-  //-----------------------------------------------------------------
 
   Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
     final path = await _getPath(false);
@@ -373,7 +371,7 @@ mixin AudioRecorderMixin {
         // print('Stopwatch elapsed: ${stopwatch.elapsedMilliseconds} ms');
 
         addToListNotes(midiPitches);
-        getList();
+
         finalMidiPitches.add(midiPitches);
         // print("Midi pitches: $finalMidiPitches");
         fileRawData.writeAsStringSync(rawListIntPCM.toString(),
