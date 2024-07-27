@@ -6,7 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 // TODO: add argument for the MXL file to be parsed
 Future<http.Response> compileMxl() async {
   const uri = "http://localhost:4000";
-  const score = "emerald_moonlight";
+  const score = "OuchieMyEarsHurt";
   final request = http.MultipartRequest('POST', Uri.parse('$uri/compile-mxl'));
 
   final musicxmlBytes =

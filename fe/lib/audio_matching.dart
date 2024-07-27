@@ -1,6 +1,6 @@
 import 'dart:math';
 
-int contour_matching(List<int> src, List<int> dst) {
+int contourMatching(List<int> src, List<int> dst) {
   int INSERTION_COST = 5;
   int SUBSTITUTION_COST(int diff) {
     int m = 1;
@@ -47,5 +47,5 @@ var src = [2, 15, 1, 20, 19]; // BOATS
 var dst = [6, 12, 15, 1, 20]; // FLOAT
 
 void main() {
-  print(contour_matching(src, dst));
+  print(contourMatching(src, dst));
 }
