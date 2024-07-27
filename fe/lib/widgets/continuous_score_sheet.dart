@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 import 'dart:async';
 import 'dart:convert';
@@ -31,12 +32,17 @@ class ContinuousScoreSheet extends StatefulWidget {
 
 class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
-  late int _width;
-  late int _height;
   final double _offsetRatio = 1 / 8;
-  late Future<SvgPicture> _svgs;
-  late Future<XmlDocument> _svgXml;
-  var groups = <GroupInfo>[];
+
+  Map<Orientation, int> _width = {};
+  Map<Orientation, int> _height = {};
+
+  Map<Orientation, SvgPicture> _svgPictures = {};
+  Map<Orientation, XmlDocument> _svgXmls = {};
+  Map<Orientation, List<GroupInfo>> _groupInfos = {};
+  Map<Orientation, ScrollController> _scrollControllers = {};
+  int _orientationChangeMeasure = 0;
+  Orientation? _prevOrientation;
 
   // lineCoordinatesRegex captures the coordinates from
   //  a string like "M171.66015625 189L472.4196980046949 189".
@@ -46,15 +52,13 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final RegExp lineCoordinatesRegex =
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
-  late final ScrollController _scrollController;
-
   Future<http.Response> _getSvgLinks(int imageWidth) async {
     final request =
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
 
     // TODO: Properly get the file instead of hardcoding a filename
-    const filename = "viva_la_vida.mxl";
+    const filename = "emerald_moonlight.mxl";
     final musicxmlBytes =
         (await rootBundle.load('assets/$filename')).buffer.asUint8List();
     request.files.add(http.MultipartFile.fromBytes('musicxml', musicxmlBytes,
@@ -66,24 +70,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     return response;
   }
 
-  void _setupSvg() {
-    final response = _getSvgLinks(_width);
-    final svgDocument =
-        response.then((body) => XmlDocument.parse(utf8.decode(body.bodyBytes)));
-    final svgPicture =
-        response.then((body) => SvgPicture.memory(body.bodyBytes));
-
-    setState(() {
-      _svgs = svgPicture;
-    });
-    _svgXml = svgDocument;
-  }
-
-  void _setWidth() {
+  void _setDimensions() {
     FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
     Size size = view.physicalSize / view.devicePixelRatio;
-    _width = size.width.toInt();
-    _height = size.height.toInt();
+
+    final width = size.width.toInt();
+    final height = size.height.toInt();
+
+    final minDimension = min(width, height);
+    final maxDimension = max(width, height);
+
+    _width[Orientation.portrait] = minDimension;
+    _height[Orientation.portrait] = maxDimension;
+    _width[Orientation.landscape] = maxDimension;
+    _height[Orientation.landscape] = minDimension;
   }
 
   // Determine if elem is a 'measure' element e.g.
@@ -172,6 +172,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   // Given a measureId, return the Group the measure would belong to
   int _getGroupForMeasure(int measureId) {
+    final orientation = MediaQuery.of(context).orientation;
+    final groups = _groupInfos[orientation]!;
     var left = 0;
     var right = groups.length;
     var groupCount = groups.length;
@@ -193,8 +195,10 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     }
   }
 
-  void _setupContinuousMode() async {
-    final svgXml = await _svgXml;
+  // Create measure groups containing the starting measure index
+  // and the y-coordinates of the groups by parsing the SVG's XML
+  Future<List<GroupInfo>> _parseSvgXml(XmlDocument svgXml) async {
+    List<GroupInfo> groups = [];
     var stafflineElements = svgXml
         .findAllElements("g")
         .where((line) => line.getAttribute('class') == 'staffline')
@@ -225,61 +229,146 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     for (var groupInfo in groups) {
       groupInfo.startingMeasure -= veryFirstMeasureId;
     }
+
+    return groups;
   }
 
   void jumpToMeasure(int measureNumber) {
-    int groupNumber = _getGroupForMeasure(measureNumber);
-    final double offset = _height * _offsetRatio;
-    double yCoord = groups[groupNumber].minY - offset;
-    double maxScroll = _scrollController.position.maxScrollExtent;
-    double minScroll = _scrollController.position.minScrollExtent;
+    final orientation = MediaQuery.of(context).orientation;
+    final height = _height[orientation]!;
+    final groups = _groupInfos[orientation]!;
 
-    if (yCoord > maxScroll) {
-      _scrollController.jumpTo(maxScroll);
-    } else if (yCoord < minScroll) {
-      _scrollController.jumpTo(minScroll);
-    } else {
-      _scrollController.jumpTo(yCoord);
+    int groupNumber = _getGroupForMeasure(measureNumber);
+    final double offset = height * _offsetRatio;
+
+    double yCoord = groups[groupNumber].minY - offset;
+    
+    final metrics = _scrollControllers[orientation]!.position;
+    if (metrics.hasContentDimensions) {
+      double maxScroll = metrics.maxScrollExtent;
+      double minScroll = metrics.minScrollExtent;
+
+      if (yCoord > maxScroll) {
+        yCoord = maxScroll;
+      } else if (yCoord < minScroll) {
+        yCoord = minScroll;
+      }
+      _scrollControllers[orientation]!.jumpTo(yCoord);
+    }
+  }
+
+  // Given the scroll controller offset, determine the smallest
+  // measure group index that is greater than that offset
+  int _getGroupFromOffset(double offset, Orientation orientation) {
+    final groups = _groupInfos[orientation]!;
+    var left = 0;
+    var right = groups.length - 1;
+
+    while (left <= right) {
+      final mid = (left + right) ~/ 2;
+      final minY = groups[mid].minY;
+
+      if (offset == minY) {
+        return mid;
+      } else if (offset > minY) {
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    return left;
+  }
+
+  // Before the orientation change, save the topmost measure number and
+  // set that measure number on the new orientation's score sheet
+  void _saveMeasure(ScrollPosition position, Orientation orientation) {
+    final prevGroupNumber = _getGroupFromOffset(position.pixels, orientation);
+    final prevOrientationGroups = _groupInfos[orientation]!;
+    final groupStartingMeasure = prevOrientationGroups[prevGroupNumber].startingMeasure;
+
+    _orientationChangeMeasure = groupStartingMeasure;
+  }
+
+  // Every time the orientation changes, using the saved _orientationChangeMeasure
+  // jump to that measure on that orientation.
+  bool handleScrollMetricsNotification(ScrollMetricsNotification notification) {
+    final orientation = MediaQuery.of(context).orientation;
+    if (_prevOrientation != null && _prevOrientation != orientation) {
+      jumpToMeasure(_orientationChangeMeasure);
+    }
+
+    _prevOrientation = orientation;
+    return false;
+  }
+
+  // For each orientation, get the SVGs, parse the SVG XML,
+  // display the picture and create measure groups
+  void _setupSvgDocuments() async {
+    for (final orientation in Orientation.values) {
+      final response = await _getSvgLinks(_width[orientation]!);
+      final svgBody = response.bodyBytes;
+      final svgDocument = XmlDocument.parse(utf8.decode(svgBody));
+      final svgPicture = SvgPicture.memory(svgBody);
+      final groups = await _parseSvgXml(svgDocument);
+
+      setState(() {
+        _svgXmls[orientation] = svgDocument;
+        _svgPictures[orientation] = svgPicture;
+        _groupInfos[orientation] = groups;
+      });
+    };
+  }
+
+  void _setupScrollControllers() {
+    for (final orientation in Orientation.values) {
+      _scrollControllers[orientation] = ScrollController(
+        onDetach: (position) {
+          // Before the tablet rotates, you save the current
+          // measure in _orientationChangeMeasure to be set
+          // when the orientation change is complete and
+          // ScrollMetricsNotification is emitted 
+          // (see handleScrollMetricsNotification)
+          _saveMeasure(position, orientation);
+        }
+      );
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _setWidth();
-    _setupSvg();
-    _setupContinuousMode();
-    _scrollController = ScrollController();
+    _setDimensions();
+    _setupSvgDocuments();
+    _setupScrollControllers();  
   }
 
   @override
   Widget build(BuildContext context) {
-    return OrientationBuilder(
-        builder: (BuildContext context, Orientation orientation) {
-      return Container(
-          color: Colors.white,
-          child: FutureBuilder(
-              future: _svgs,
-              builder:
-                  (BuildContext context, AsyncSnapshot<SvgPicture> snapshot) {
-                if (snapshot.hasData && orientation == Orientation.landscape) {
-                  return Scaffold(
-                    body: ListView(
-                        controller: _scrollController,
-                        scrollDirection: Axis.vertical,
-                        children: [snapshot.data!]),
-                    // TODO: Remove this button (it is for testing purposes only)
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: () {
-                        jumpToMeasure(75 - 1);
-                      },
-                      child: const Icon(Icons.arrow_upward),
-                    ),
-                  );
-                } else {
-                  return Placeholder();
-                }
-              }));
-    });
+    return Container(
+      color: Colors.white,
+      child: OrientationBuilder(
+        builder: (context, orientation) {
+          return _svgPictures.containsKey(orientation) ?
+            NotificationListener<ScrollMetricsNotification>(
+              onNotification: handleScrollMetricsNotification,
+              child: Scaffold(
+                body: ListView(
+                  controller: _scrollControllers[orientation]!,
+                  scrollDirection: Axis.vertical,
+                  children: [_svgPictures[orientation]!]
+                ),
+                // TODO: Remove this button (it is for testing purposes only)
+                floatingActionButton: FloatingActionButton(
+                  onPressed: () {
+                    jumpToMeasure(75 - 1);
+                  },
+                  child: const Icon(Icons.arrow_upward),
+                ),
+              ),
+            ) : Placeholder();
+        }
+      )
+    );
   }
 }
