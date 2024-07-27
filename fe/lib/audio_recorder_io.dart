@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:core';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math';
 
@@ -17,11 +18,11 @@ class Tuple<T, U> {
   Tuple(this.x, this.y);
 }
 
+double A4 = 440.0;
+
 double twelfthRootOf2 = pow(2, 1.0 / 12).toDouble();
 
 double freqForNote(String? baseNote, int noteIndex) {
-  double A4 = 440.0;
-
   Map<String, double> baseNotesFreq = {
     "A2": A4 / 4,
     "A3": A4 / 2,
@@ -30,26 +31,29 @@ double freqForNote(String? baseNote, int noteIndex) {
     "A6": A4 * 4
   };
 
-  Map<String, double> scaleNotes = {
-    "C": -9.0,
-    "C#": -8.0,
-    "D": -7.0,
-    "D#": -6.0,
-    "E": -5.0,
-    "F": -4.0,
-    "F#": -3.0,
-    "G": -2.0,
-    "G#": -1.0,
-    "A": 1.0,
-    "A#": 2.0,
-    "B": 3.0,
-    "Cn": 4.0
-  };
+  //
+  // scaleNotes = {
+  //   "C": -9.0,
+  //   "C#": -8.0,
+  //   "D": -7.0,
+  //   "D#": -6.0,
+  //   "E": -5.0,
+  //   "F": -4.0,
+  //   "F#": -3.0,
+  //   "G": -2.0,
+  //   "G#": -1.0,
+  //   "A": 1.0,
+  //   "A#": 2.0,
+  //   "B": 3.0,
+  //   "Cn": 4.0
+  // };
+
+  int numNotes = 14;
 
   List<int> scaleNotesIndex = List<int>.filled(14, 0);
 
-  for (int i = -9; i < 5; i++) {
-    scaleNotesIndex[i + 9] = i;
+  for (int i = 0; i < numNotes; i++) {
+    scaleNotesIndex[i] = i - 9;
   }
 
   int noteIndexValue = scaleNotesIndex[noteIndex];
@@ -80,7 +84,7 @@ List<Tuple<String, double>> getAllNotesFreq() {
   ];
 
   for (int octaveIndex = 2; octaveIndex < 7; octaveIndex++) {
-    String baseNote = "A${octaveIndex}";
+    String baseNote = "A$octaveIndex";
     for (int noteIndex = 0; noteIndex < 12; noteIndex++) {
       double noteFrequency = freqForNote(baseNote, noteIndex);
       String noteName = "${orderedNotes[noteIndex]}$octaveIndex";
@@ -94,8 +98,7 @@ List<Tuple<String, double>> getAllNotesFreq() {
 List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
 
 mixin AudioRecorderMixin {
-  final numberOfFFTBins = 16384;
-  final sampleRate = 20000;
+  final numberOfFFTBins = 8192;
 
   Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
     final path = await _getPath(false);
@@ -122,12 +125,9 @@ mixin AudioRecorderMixin {
       int numberOfBins, int lowerFreq, int higherFreq) {
     List<double> filteredFFTData = FFTData;
     double fftResolution = sampleRate / numberOfBins;
-    print("FFT resolution: ${fftResolution}");
     int lowerBin = lowerFreq ~/ fftResolution;
     int higherBin = higherFreq ~/ fftResolution;
 
-    print("Lower bin: ${lowerBin}");
-    print("Higher bin: ${higherBin}");
     for (int i = 0; i < FFTData.length; i++) {
       if (i < lowerBin || i > higherBin) {
         filteredFFTData[i] = 0;
@@ -151,7 +151,6 @@ mixin AudioRecorderMixin {
       sum += pow(chunk[i], 2).toDouble();
     }
     double mean = sum / chunk.length;
-    print("Mean: $mean");
     return sqrt(mean);
   }
 
@@ -166,7 +165,8 @@ mixin AudioRecorderMixin {
   }
 
   double noteThresholdScaledByHPS(double buffer_rms) {
-    double noteThreshold = 1000 * (4 / 0.090) * buffer_rms;
+    // print("Buffer RMS: $buffer_rms");
+    double noteThreshold = 500 * (4 / 0.090) * buffer_rms;
     return noteThreshold;
   }
 
@@ -183,12 +183,18 @@ mixin AudioRecorderMixin {
     return retArgs.sublist(0, numArgsAdded);
   }
 
-  List<double> normalizedData(List<double> X) {
-    List<double> retData = List<double>.filled(X.length, 0);
-    for (int i = 0; i < retData.length; i++) {
-      retData[i] = X[i] / 32768;
+  List<int> modifiedArgMax(List<double> X, double threshold) {
+    List<int> retArgs = List<int>.empty(growable: true);
+
+    for (int i = 0; i < X.length; i++) {
+      if (retArgs.isEmpty && X[i] > threshold) {
+        retArgs.add(i);
+      } else if (retArgs.isNotEmpty && X[i] > threshold && X[i] > retArgs[0]) {
+        retArgs[0] = i;
+      }
     }
-    return retData;
+
+    return retArgs;
   }
 
   String findNearestNote(
@@ -207,15 +213,13 @@ mixin AudioRecorderMixin {
     return finalNoteName;
   }
 
-  List<Tuple<int, double>> pitchSpectralHPS(List<double> X, double rms) {
+  List<Tuple<int, double>> pitchSpectralHPS(
+      List<double> X, double rms, int sampleRate) {
     int iOrder = 4;
-    print("Length of X: ${X.length}");
     int finalSizeOfAFHPS = ((numberOfFFTBins / 2) - 1) ~/ iOrder;
-    print("Final size of AFHPS: $finalSizeOfAFHPS");
     double fMin = 65.41; // C2
 
     int kMin = (fMin / sampleRate * 2 * (X.length - 1)).round();
-    print("kMin given: $kMin");
 
     List<double> afHps = X.sublist(0, finalSizeOfAFHPS);
 
@@ -229,29 +233,52 @@ mixin AudioRecorderMixin {
 
     double noteThreshold = noteThresholdScaledByHPS(rms);
 
-    // print("AFHPS: ${afHps}");
     List<double> rawFreqValues = afHps.sublist(kMin);
-    List<int> allFreqs = argWhere(rawFreqValues, noteThreshold);
+    List<int> likelyFreq = modifiedArgMax(afHps.sublist(kMin), noteThreshold);
 
-    List<int> freqsOut = List<int>.filled(allFreqs.length, 0);
+    List<int> freqsOut = List<int>.filled(likelyFreq.length, 0);
 
     for (int i = 0; i < freqsOut.length; i++) {
       freqsOut[i] =
-          ((allFreqs[i] + kMin) / (X.length - 1) * sampleRate / 2).toInt();
+          ((likelyFreq[i] + kMin) / (X.length - 1) * sampleRate / 2).toInt();
     }
-
-    print("All frequencies: $allFreqs");
-    print("Frequency out: $freqsOut");
 
     List<Tuple<int, double>> freqsOutTmp =
         List<Tuple<int, double>>.empty(growable: true);
 
-    for (int i = 0; i < allFreqs.length; i++) {
+    for (int i = 0; i < likelyFreq.length; i++) {
       Tuple<int, double> indexValue = Tuple(freqsOut[i], rawFreqValues[i]);
       freqsOutTmp.add(indexValue);
     }
 
     return freqsOutTmp;
+  }
+
+  List<String> addFinalNotes(List<String> finalNotes, String note) {
+    int len = finalNotes.length;
+    if (finalNotes.isEmpty || finalNotes[len - 1] != note) {
+      finalNotes.add(note);
+    }
+
+    return finalNotes;
+  }
+
+  List<int> addMidiFinalNotes(List<int> finalNotes, int pitch) {
+    int len = finalNotes.length;
+    if (finalNotes.isEmpty || finalNotes[len - 1] != pitch) {
+      finalNotes.add(pitch);
+    }
+    return finalNotes;
+  }
+
+  int freqToMIDI(int freq) {
+    double fA4InHz = 440.0;
+
+    if (freq <= 0) {
+      return 0;
+    }
+
+    return (69 + 12 * (log(freq / fA4InHz) / log(2))).toInt();
   }
 
   Future<void> recordStream(AudioRecorder recorder, RecordConfig config) async {
@@ -262,19 +289,17 @@ mixin AudioRecorderMixin {
 
     final stream = await recorder.startStream(config);
 
-    final stopWatch = Stopwatch();
+    List<List<int>> finalMidiPitches = List<List<int>>.empty(growable: true);
 
     List<int>? primaryDataBuffer;
     List<int>? secondaryDataBuffer;
     int numBuffers = 2;
+    int flag = 1;
 
     Radix2FFT fftObj = Radix2FFT(numberOfFFTBins);
 
-    int flag = 1;
-
     stream.listen(
       (data) {
-        stopWatch.start();
         // Convert the bytes into a 16 bit integer PCM array as convention
         var rawListIntPCM;
 
@@ -310,42 +335,36 @@ mixin AudioRecorderMixin {
             fftObj.realFft(fftList).discardConjugates().magnitudes();
 
         List<double> FFTFiltered = implementBandPassFilter(
-            FFTResult, sampleRate, numberOfFFTBins, 50, 4500);
+            FFTResult, config.sampleRate, numberOfFFTBins, 50, 4500);
 
         double rmsThreshold = rmsSignalThreshold(windowedResult);
 
-        print("RMS Threshold: $rmsThreshold");
-        // print("Peaks: $peaks");
+        List<Tuple> pHPS =
+            pitchSpectralHPS(FFTFiltered, rmsThreshold, config.sampleRate);
 
-        List<Tuple> pHPS = pitchSpectralHPS(FFTFiltered, rmsThreshold);
-
-        Set<String> finalNotes = <String>{};
+        List<String> finalNotes = List<String>.empty(growable: true);
+        List<int> midiPitches = List<int>.empty(growable: true);
 
         for (int i = 0; i < pHPS.length; i++) {
           String noteName = findNearestNote(orderedNoteFreq, pHPS[i].x);
-          print(
-              "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
-          finalNotes.add(noteName);
+          // print(
+          //     "=> Freq: ${pHPS[i].x}  Hz value: ${pHPS[i].y}  Note name: $noteName");
+          finalNotes = addFinalNotes(finalNotes, noteName);
+          midiPitches = addMidiFinalNotes(midiPitches, freqToMIDI(pHPS[i].x));
         }
 
-        print("Final Notes: $finalNotes");
-        print("To String: ${finalNotes.toString()}");
-        // stopWatch.stop();
-        // print("Elapsed time: ${stopWatch.elapsedMilliseconds}");
-        // stopWatch.reset();
-        // windowed PCM
-        file.writeAsStringSync(finalNotes.toString(), mode: FileMode.append);
+        finalMidiPitches.add(midiPitches);
         fileRawData.writeAsStringSync(rawListIntPCM.toString(),
             mode: FileMode.append);
       },
       onDone: () {
+        String listConvertToJson = jsonEncode(finalMidiPitches);
+        file.writeAsStringSync(listConvertToJson);
         print('End of stream. File written to $path.');
         print('End of stream. File written to $pathRawData.');
       },
     );
   }
-
-  void downloadWebData(String path) {}
 
   Future<String> _getPath(bool appendRawData) async {
     final dir = await getApplicationDocumentsDirectory();
