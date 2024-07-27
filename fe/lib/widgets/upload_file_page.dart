@@ -9,6 +9,23 @@ class UploadFilePage extends StatefulWidget {
 }
 
 class _UploadFilePageState extends State<UploadFilePage> {
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      // Process the file (e.g., upload to a server or display information)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File: ${file.name}')),
+      );
+    } else {
+      // User canceled the picker
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File selection canceled')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -21,7 +38,7 @@ class _UploadFilePageState extends State<UploadFilePage> {
               width: 500, // Set the width of the button
               height: 80, // Set the height of the button
               child: ElevatedButton(
-                onPressed: () => {},
+                onPressed: _pickFile,
                 style: ElevatedButton.styleFrom(
                   textStyle: TextStyle(fontSize: 40), // Increase font size
                   padding: EdgeInsets.all(16), // Increase padding
@@ -34,7 +51,7 @@ class _UploadFilePageState extends State<UploadFilePage> {
               width: 500, // Set the width of the button
               height: 80, // Set the height of the button
               child: ElevatedButton(
-                onPressed: () => {},
+                onPressed: _pickFile,
                 style: ElevatedButton.styleFrom(
                   textStyle: TextStyle(fontSize: 40), // Increase font size
                   padding: EdgeInsets.all(16), // Increase padding
