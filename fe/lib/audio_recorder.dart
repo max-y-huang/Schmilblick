@@ -1,7 +1,6 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:record/record.dart';
 
 import 'audio_recorder_io.dart';
@@ -47,6 +46,8 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       if (await _audioRecorder.hasPermission()) {
         const encoder = AudioEncoder.pcm16bits;
 
+        const sampleRateSet = 20000;
+
         if (!await _isEncoderSupported(encoder)) {
           return;
         }
@@ -55,7 +56,8 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         final devs = await _audioRecorder.listInputDevices();
         print("All input devices: ${devs.toString()}");
 
-        const config = RecordConfig(encoder: encoder, numChannels: 1);
+        const config = RecordConfig(
+            encoder: encoder, numChannels: 1, sampleRate: sampleRateSet);
 
         await recordStream(_audioRecorder, config);
 
@@ -73,8 +75,6 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
 
     if (path != null) {
       widget.onStop(path);
-
-      downloadWebData(path);
     }
   }
 
@@ -144,30 +144,6 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       ),
     );
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return MaterialApp(home: Scaffold( body: Column ( mainAxisAlignment: MainAxisAlignment.center, children: [
-  //     Row( mainAxisAlignment: MainAxisAlignment.center, children: [
-  //       Row( mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
-  //         _buildRecordStopControl(),
-  //         constSizedBox(width: 20),
-  //         _buildPauseResumeControl(),
-  //         constSizedBox(width: 20),
-  //         _buildText(),
-  //       ],
-  //       ),
-  //       if (_amplitude != null) ...[
-  //         const SizedBox(height: 40),
-  //         Text('Current: ${_amplitude?.current ?? 0.0}'),
-  //         Text('Max: ${_amplitude?.max ?? 0.0}'),
-  //       ],
-  //     ],
-  //     ),
-  //   ),
-  //   ),
-  //   );
-  // }
 
   @override
   void dispose() {
@@ -268,122 +244,4 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       setState(() => _recordDuration++);
     });
   }
-
-  //------------------------------------------------
-  // OLD IMPLEMENTATION
-  // TRY TO FOLLOW EXAMPLE
-  //------------------------------------------------
-
-  // final myRecording = AudioRecorder();
-  // Timer? timer;
-  // // File? _file;
-
-  // double volume = 0.0;
-  // double minVolume = -45.0;
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   WidgetsBinding.instance.addObserver(this);
-  // }
-
-  // @override
-  // void dispose() {
-  //   WidgetsBinding.instance.removeObserver(this);
-  //   // stopRecording();
-  //   super.dispose();
-  // }
-
-  // Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-  //   _created ??= await _create();
-  //   await _stopRecordStream();
-
-  //   final stream = await RecordPlatform.
-  // }
-  // startTimer() async {
-  //   timer ??=
-  //       Timer.periodic(Duration(milliseconds: 500), (timer) => updateVolume());
-  // }
-
-  // updateVolume() async {
-  //   Amplitude ampl = await myRecording.getAmplitude();
-  //   // await printPCMData();
-  //   // print("Amplitude gained: ${ampl.current}");
-  //   if (ampl.current > minVolume) {
-  //     setState(() {
-  //       volume = (ampl.current - minVolume) / minVolume;
-  //     });
-  //     print("VOLUME: ${volume}");
-  //   }
-  // }
-
-  // int volume0to(int maxVolumeToDisplay) {
-  //   return (volume * maxVolumeToDisplay).round().abs();
-  // }
-
-  // Future<bool> startRecording() async {
-  //   if (await myRecording.hasPermission()) {
-  //     print("Recording has permission...");
-  //     if (!await myRecording.isRecording()) {
-  //       // print("Audio recorder is not currently recording....");
-  //       // Directory appDocDir = await getApplicationDocumentsDirectory();
-  //       // String filePath = 'file://$appDocDir/pcm_file.txt';
-
-  //       // _file = File(filePath);
-
-  //       // print("Checking the file exists....");
-  //       // if (await _file!.exists()) {
-  //       //   print("File exists, we're deleting it...");
-  //       //   await _file!.delete(); // Where we delete the previous recording
-  //       // }
-
-  //       // print("File doesn't exist..., now going through with it");
-  //       // await myRecording.start(
-  //       //   const RecordConfig(encoder: AudioEncoder.pcm16bits),
-  //       //   path: filePath,
-  //       // );
-
-  //       // print("My recording started...");
-  //       // Directory appDocDir = await getApplicationDocumentsDirectory();
-  //       // await myRecording.start(
-  //       //     const RecordConfig(encoder: AudioEncoder.pcm16bits),
-  //       //     path: "./test_files/pcm_file.txt");
-  //       final stream = await myRecording
-  //           .startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits));
-  //       // print("Recording started at: $filePath");
-  //       startTimer();
-  //       return true;
-  //     }
-  //   }
-  //   print("Recording permission not granted.");
-  //   return false;
-  // }
-
-  // Future<void> stopRecording() async {
-  //   print("Stop recording is triggered");
-  //   if (await myRecording.isRecording()) {
-  //     final path = await myRecording.stop();
-  //     print('Recorded file path: $path');
-  //   }
-  // }
-
-  // Future<void> printPCMData() async {
-  //   if (_file != null) {
-  //     final bytes = await _file!.readAsBytes();
-  //     print("PCM Data: $bytes");
-  //   }
-  // }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return FutureBuilder(
-  //       future: startRecording(),
-  //       builder: (context, AsyncSnapshot<bool> snapshot) {
-  //         return Scaffold(
-  //             body: Center(
-  //           child:
-  //               Text(snapshot.hasData ? volume0to(100).toString() : "NO DATA"),
-  //         ));
-  //       });
-  // }
 }
