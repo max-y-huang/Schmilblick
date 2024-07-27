@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:provider/provider.dart';
+import 'package:smart_turner/compiled_mxl_model.dart';
 
 class PagedScoreSheet extends StatefulWidget {
   const PagedScoreSheet({super.key});
@@ -23,7 +23,7 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   late final Future<Uint8List> _pdfBytes;
 
   late final PDFViewController _pdfViewController;
-  late final List<int> _pageTable;
+  late List<int> _pageTable;
 
   int _randomMeasure = 0;
   final Random rand = Random();
@@ -31,8 +31,22 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   @override
   void initState() {
     super.initState();
-    _extractCompiledMxlInformation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractCompiledMxlInformation();
+    });
+
     _getFile();
+  }
+
+  // This widget is wrapped in a `Consumer<CompiledMxl>(...)`
+  //  so it subscribed to the CompiledMxl model. If the
+  //  CompiledMxl changes, we call _extractCompiledMxlInformation()
+  //  to build a new _pageTable for the new sheet music
+  @override
+  void didChangeDependencies() {
+    print("Dependencies changed for pdf view!");
+    super.didChangeDependencies();
+    _extractCompiledMxlInformation();
   }
 
   void _getFile() async {
@@ -46,24 +60,9 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
     });
   }
 
-  Future<http.Response> _compileMxl() async {
-    final request =
-        http.MultipartRequest('POST', Uri.parse('$uri/compile-mxl'));
-
-    final musicxmlBytes =
-        (await rootBundle.load('assets/$score.mxl')).buffer.asUint8List();
-    request.files.add(
-        http.MultipartFile.fromBytes('file', musicxmlBytes, filename: score));
-
-    final streamResponse = await request.send();
-    final response = await http.Response.fromStream(streamResponse);
-
-    return response;
-  }
-
   void _extractCompiledMxlInformation() async {
-    final response = await _compileMxl();
-    final resJson = jsonDecode(response.body) as Map<String, dynamic>;
+    CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
+    final resJson = compiledMxl.compiledMxlOutput;
     final parts = resJson["parts"] as Map<String, dynamic>;
     final firstPart = parts.keys.first;
     final pageTableDyn = parts[firstPart]["page_table"] as List<dynamic>;
@@ -89,34 +88,36 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-        color: Colors.white,
-        child: FutureBuilder(
-            future: _pdfBytes,
-            builder: (buildContext, snapshot) {
-              if (snapshot.hasData) {
-                return Scaffold(
-                    body: PDFView(
-                      pdfData: snapshot.data,
-                      swipeHorizontal: true,
-                      onViewCreated: _initializeController,
-                    ),
-                    // TODO: Remove this button (testing purposes only)
-                    floatingActionButton: FloatingActionButton.extended(
-                      onPressed: () {
-                        jumpToMeasure(_randomMeasure);
-                        setState(() {
-                          _randomMeasure = rand.nextInt(_pageTable.length);
-                        });
-                      },
-                      label: Text('${_randomMeasure + 1}',
-                          style: const TextStyle(
-                            fontSize: 60.0,
-                          )),
-                    ));
-              } else {
-                return Placeholder();
-              }
-            }));
+    return Consumer<CompiledMxl>(builder: (context, compiledMxl, child) {
+      return Container(
+          color: Colors.white,
+          child: FutureBuilder(
+              future: _pdfBytes,
+              builder: (buildContext, snapshot) {
+                if (snapshot.hasData) {
+                  return Scaffold(
+                      body: PDFView(
+                        pdfData: snapshot.data,
+                        swipeHorizontal: true,
+                        onViewCreated: _initializeController,
+                      ),
+                      // TODO: Remove this button (testing purposes only)
+                      floatingActionButton: FloatingActionButton.extended(
+                        onPressed: () {
+                          jumpToMeasure(_randomMeasure);
+                          setState(() {
+                            _randomMeasure = rand.nextInt(_pageTable.length);
+                          });
+                        },
+                        label: Text('${_randomMeasure + 1}',
+                            style: const TextStyle(
+                              fontSize: 60.0,
+                            )),
+                      ));
+                } else {
+                  return Placeholder();
+                }
+              }));
+    });
   }
 }
