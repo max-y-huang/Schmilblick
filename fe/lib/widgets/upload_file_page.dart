@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -9,18 +10,44 @@ class UploadFilePage extends StatefulWidget {
 }
 
 class _UploadFilePageState extends State<UploadFilePage> {
-  Future<void> _pickFile() async {
-    print("Upload file from file system");
+  Uint8List? _mxlFile;
+  Uint8List? _pdfFile;
 
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+  Future<void> _uploadPdf() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
 
     if (result != null) {
       PlatformFile file = result.files.first;
       // Process the file (e.g., upload to a server or display information)
-      print('File: ${file.name}');
+      print('PDF File: ${file.name}');
+      setState(() {
+        _pdfFile = file.bytes;
+      });
     } else {
       // User canceled the picker
-      print('File selection canceled');
+      print('PDF file selection canceled');
+    }
+  }
+  
+  Future<void> _uploadMxl() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      withData: true,
+    );
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      // Process the file (e.g., upload to a server or display information)
+      print('MXL File: ${file.name} ${file.extension}');
+      setState(() {
+        _mxlFile = file.bytes;
+      });
+    } else {
+      // User canceled the picker
+      print('MXL file selection canceled');
     }
   }
 
@@ -36,12 +63,12 @@ class _UploadFilePageState extends State<UploadFilePage> {
               width: 500, // Set the width of the button
               height: 80, // Set the height of the button
               child: ElevatedButton(
-                onPressed: _pickFile,
+                onPressed: _mxlFile == null ? _uploadMxl : null,
                 style: ElevatedButton.styleFrom(
                   textStyle: TextStyle(fontSize: 40), // Increase font size
                   padding: EdgeInsets.all(16), // Increase padding
                 ),
-                child: Text('Upload .mxl File'),
+                child: Text(_mxlFile == null ? 'Upload .mxl File' : '.mxl File Uploaded'),
               ),
             ),
             SizedBox(height: 20),
@@ -49,12 +76,12 @@ class _UploadFilePageState extends State<UploadFilePage> {
               width: 500, // Set the width of the button
               height: 80, // Set the height of the button
               child: ElevatedButton(
-                onPressed: _pickFile,
+                onPressed: _pdfFile == null ? _uploadPdf : null,
                 style: ElevatedButton.styleFrom(
                   textStyle: TextStyle(fontSize: 40), // Increase font size
                   padding: EdgeInsets.all(16), // Increase padding
                 ),
-                child: Text('Upload .pdf File'),
+                child: Text(_pdfFile == null ? 'Upload .pdf File' : '.pdf File Uploaded'),
               ),
             ),
           ],
