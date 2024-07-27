@@ -210,7 +210,7 @@ List<Slice> getNoteIntervalSlices(
   List<Slice> slices = List<Slice>.generate(
       (len - sliceSize),
       (i) => Slice(noteIntervals.sublist(i, i + sliceSize),
-          measureNumbers[i + sliceSize + 1]));
+          measureNumbers[i + sliceSize]));
 
   return slices;
 }
