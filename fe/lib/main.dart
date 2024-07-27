@@ -16,6 +16,31 @@ void main() => runApp(
       ),
     );
 
+class RecorderPage extends StatefulWidget {
+  const RecorderPage({super.key});
+
+  @override
+  State<RecorderPage> createState() => _RecorderPage();
+}
+
+class _RecorderPage extends State<RecorderPage> {
+  String? audioPath;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Recorder(),
+      ),
+    );
+  }
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
   @override
@@ -47,49 +72,21 @@ class _MyAppState extends State<MyApp> {
             return Text('Error: ${snapshot.error}');
           } else {
             return MaterialApp(
-              title: 'Flutter Demo',
-              theme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-                useMaterial3: true,
-              ),
-              home: const ScoreSheetDisplay(),
-            );
+                title: 'Flutter Demo',
+                theme: ThemeData(
+                  colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
+                  useMaterial3: true,
+                ),
+                home: Column(
+                  children: [
+                    SizedBox(
+                        height: MediaQuery.of(context).size.height,
+                        width: MediaQuery.of(context).size.width,
+                        child: ScoreSheetDisplay()),
+                    Recorder(),
+                  ],
+                ));
           }
         });
-  }
-}
-
-class RecorderPage extends StatefulWidget {
-  const RecorderPage({super.key});
-
-  @override
-  State<RecorderPage> createState() => _RecorderPage();
-}
-
-class _RecorderPage extends State<RecorderPage> {
-  bool showPlayer = false;
-  String? audioPath;
-
-  @override
-  void initState() {
-    showPlayer = false;
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Recorder(
-          onStop: (path) {
-            if (kDebugMode) print('Recorded file path: $path');
-            setState(() {
-              audioPath = path;
-              showPlayer = true;
-            });
-          },
-        ),
-      ),
-    );
   }
 }
