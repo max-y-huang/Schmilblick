@@ -23,7 +23,7 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   late final Future<Uint8List> _pdfBytes;
 
   late final PDFViewController _pdfViewController;
-  late final List<int> _pageTable;
+  late List<int> _pageTable;
 
   int _randomMeasure = 0;
   final Random rand = Random();
@@ -36,6 +36,17 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
     });
 
     _getFile();
+  }
+
+  // This widget is wrapped in a `Consumer<CompiledMxl>(...)`
+  //  so it subscribed to the CompiledMxl model. If the
+  //  CompiledMxl changes, we call _extractCompiledMxlInformation()
+  //  to build a new _pageTable for the new sheet music
+  @override
+  void didChangeDependencies() {
+    print("Dependencies changed for pdf view!");
+    super.didChangeDependencies();
+    _extractCompiledMxlInformation();
   }
 
   void _getFile() async {
@@ -77,34 +88,36 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-        color: Colors.white,
-        child: FutureBuilder(
-            future: _pdfBytes,
-            builder: (buildContext, snapshot) {
-              if (snapshot.hasData) {
-                return Scaffold(
-                    body: PDFView(
-                      pdfData: snapshot.data,
-                      swipeHorizontal: true,
-                      onViewCreated: _initializeController,
-                    ),
-                    // TODO: Remove this button (testing purposes only)
-                    floatingActionButton: FloatingActionButton.extended(
-                      onPressed: () {
-                        jumpToMeasure(_randomMeasure);
-                        setState(() {
-                          _randomMeasure = rand.nextInt(_pageTable.length);
-                        });
-                      },
-                      label: Text('${_randomMeasure + 1}',
-                          style: const TextStyle(
-                            fontSize: 60.0,
-                          )),
-                    ));
-              } else {
-                return Placeholder();
-              }
-            }));
+    return Consumer<CompiledMxl>(builder: (context, compiledMxl, child) {
+      return Container(
+          color: Colors.white,
+          child: FutureBuilder(
+              future: _pdfBytes,
+              builder: (buildContext, snapshot) {
+                if (snapshot.hasData) {
+                  return Scaffold(
+                      body: PDFView(
+                        pdfData: snapshot.data,
+                        swipeHorizontal: true,
+                        onViewCreated: _initializeController,
+                      ),
+                      // TODO: Remove this button (testing purposes only)
+                      floatingActionButton: FloatingActionButton.extended(
+                        onPressed: () {
+                          jumpToMeasure(_randomMeasure);
+                          setState(() {
+                            _randomMeasure = rand.nextInt(_pageTable.length);
+                          });
+                        },
+                        label: Text('${_randomMeasure + 1}',
+                            style: const TextStyle(
+                              fontSize: 60.0,
+                            )),
+                      ));
+                } else {
+                  return Placeholder();
+                }
+              }));
+    });
   }
 }
