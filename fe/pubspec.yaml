@@ -71,14 +71,6 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/happy_birthday.mxl
-    - assets/happy_birthday.pdf
-    - assets/happy_birthday.mxl
-    - assets/emerald_moonlight.pdf
-    - assets/emerald_moonlight.mxl
-    - assets/joplin-scott-the-entertainer.pdf
-    - assets/emerald_moonlight.mxl
-    - assets/viva_la_vida.mxl
     - assets/icon-dark.png
 
   # An image asset can refer to one or more resolution-specific "variants", see

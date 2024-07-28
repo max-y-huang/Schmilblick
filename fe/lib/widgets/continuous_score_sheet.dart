@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:smart_turner/measure_model.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:xml/xml.dart';
 
@@ -54,20 +55,19 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
   Future<http.Response> _getSvgLinks(int imageWidth) async {
-    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+    UploadedFiles uploadedFiles =
+        Provider.of<UploadedFiles>(context, listen: false);
 
     final request =
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
-    
+
     final mxlFile = uploadedFiles.mxlFile;
     final fileBytes = mxlFile?.bytes;
     final fileName = mxlFile?.name;
 
-    request.files.add(http.MultipartFile.fromBytes(
-      'musicxml', fileBytes!,
-      filename: fileName!
-    ));
+    request.files.add(http.MultipartFile.fromBytes('musicxml', fileBytes!,
+        filename: fileName!));
 
     final streamResponse = await request.send();
     final response = await http.Response.fromStream(streamResponse);
@@ -348,29 +348,33 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     _setupScrollControllers();
   }
 
+  // @override
+  // void didChangeDependencies() {
+  //   print("Dependencies changed for continuous view!");
+  //   super.didChangeDependencies();
+  //   _setupSvgDocuments()
+  // }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-        color: Colors.white,
-        child: OrientationBuilder(builder: (context, orientation) {
-          return _svgPictures.containsKey(orientation)
-              ? NotificationListener<ScrollMetricsNotification>(
-                  onNotification: handleScrollMetricsNotification,
-                  child: Scaffold(
-                    body: ListView(
-                        controller: _scrollControllers[orientation]!,
-                        scrollDirection: Axis.vertical,
-                        children: [_svgPictures[orientation]!]),
-                    // TODO: Remove this button (it is for testing purposes only)
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: () {
-                        jumpToMeasure(75 - 1);
-                      },
-                      child: const Icon(Icons.arrow_upward),
+    return Consumer2<UploadedFiles, MeasureModel>(
+        builder: (context, uploadedFiles, measure, child) {
+      if (measure.measure != -1) jumpToMeasure(measure.measure);
+      return Container(
+          color: Colors.white,
+          child: OrientationBuilder(builder: (context, orientation) {
+            return _svgPictures.containsKey(orientation)
+                ? NotificationListener<ScrollMetricsNotification>(
+                    onNotification: handleScrollMetricsNotification,
+                    child: Scaffold(
+                      body: ListView(
+                          controller: _scrollControllers[orientation]!,
+                          scrollDirection: Axis.vertical,
+                          children: [_svgPictures[orientation]!]),
                     ),
-                  ),
-                )
-              : Placeholder();
-        }));
+                  )
+                : Placeholder();
+          }));
+    });
   }
 }

@@ -74,7 +74,7 @@ class _ScoreSheetDisplayState extends State<ScoreSheetDisplay> {
                 index: mode.index,
                 children: [
                   PagedScoreSheet(),
-                  Placeholder(),
+                  ContinuousScoreSheet(),
                 ],
               ),
               bottomNavigationBar: BottomAppBar(
