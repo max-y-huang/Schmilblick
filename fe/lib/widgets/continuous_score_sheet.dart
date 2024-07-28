@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:smart_turner/measure_model.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:xml/xml.dart';
 
@@ -54,20 +55,19 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
   Future<http.Response> _getSvgLinks(int imageWidth) async {
-    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+    UploadedFiles uploadedFiles =
+        Provider.of<UploadedFiles>(context, listen: false);
 
     final request =
         http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
     request.fields['pageWidth'] = imageWidth.toString();
-    
+
     final mxlFile = uploadedFiles.mxlFile;
     final fileBytes = mxlFile?.bytes;
     final fileName = mxlFile?.name;
 
-    request.files.add(http.MultipartFile.fromBytes(
-      'musicxml', fileBytes!,
-      filename: fileName!
-    ));
+    request.files.add(http.MultipartFile.fromBytes('musicxml', fileBytes!,
+        filename: fileName!));
 
     final streamResponse = await request.send();
     final response = await http.Response.fromStream(streamResponse);
@@ -247,7 +247,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final double offset = height * _offsetRatio;
 
     double yCoord = groups[groupNumber].minY - offset;
-    
+
     final metrics = _scrollControllers[orientation]!.position;
     if (metrics.hasContentDimensions) {
       double maxScroll = metrics.maxScrollExtent;
@@ -290,7 +290,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   void _saveMeasure(ScrollPosition position, Orientation orientation) {
     final prevGroupNumber = _getGroupFromOffset(position.pixels, orientation);
     final prevOrientationGroups = _groupInfos[orientation]!;
-    final groupStartingMeasure = prevOrientationGroups[prevGroupNumber].startingMeasure;
+    final groupStartingMeasure =
+        prevOrientationGroups[prevGroupNumber].startingMeasure;
 
     _orientationChangeMeasure = groupStartingMeasure;
   }
@@ -322,21 +323,20 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
         _svgPictures[orientation] = svgPicture;
         _groupInfos[orientation] = groups;
       });
-    };
+    }
+    ;
   }
 
   void _setupScrollControllers() {
     for (final orientation in Orientation.values) {
-      _scrollControllers[orientation] = ScrollController(
-        onDetach: (position) {
-          // Before the tablet rotates, you save the current
-          // measure in _orientationChangeMeasure to be set
-          // when the orientation change is complete and
-          // ScrollMetricsNotification is emitted 
-          // (see handleScrollMetricsNotification)
-          _saveMeasure(position, orientation);
-        }
-      );
+      _scrollControllers[orientation] = ScrollController(onDetach: (position) {
+        // Before the tablet rotates, you save the current
+        // measure in _orientationChangeMeasure to be set
+        // when the orientation change is complete and
+        // ScrollMetricsNotification is emitted
+        // (see handleScrollMetricsNotification)
+        _saveMeasure(position, orientation);
+      });
     }
   }
 
@@ -345,35 +345,36 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     super.initState();
     _setDimensions();
     _setupSvgDocuments();
-    _setupScrollControllers();  
+    _setupScrollControllers();
   }
+
+  // @override
+  // void didChangeDependencies() {
+  //   print("Dependencies changed for continuous view!");
+  //   super.didChangeDependencies();
+  //   _setupSvgDocuments()
+  // }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: OrientationBuilder(
-        builder: (context, orientation) {
-          return _svgPictures.containsKey(orientation) ?
-            NotificationListener<ScrollMetricsNotification>(
-              onNotification: handleScrollMetricsNotification,
-              child: Scaffold(
-                body: ListView(
-                  controller: _scrollControllers[orientation]!,
-                  scrollDirection: Axis.vertical,
-                  children: [_svgPictures[orientation]!]
-                ),
-                // TODO: Remove this button (it is for testing purposes only)
-                floatingActionButton: FloatingActionButton(
-                  onPressed: () {
-                    jumpToMeasure(75 - 1);
-                  },
-                  child: const Icon(Icons.arrow_upward),
-                ),
-              ),
-            ) : Placeholder();
-        }
-      )
-    );
+    return Consumer2<UploadedFiles, MeasureModel>(
+        builder: (context, uploadedFiles, measure, child) {
+      if (measure.measure != -1) jumpToMeasure(measure.measure);
+      return Container(
+          color: Colors.white,
+          child: OrientationBuilder(builder: (context, orientation) {
+            return _svgPictures.containsKey(orientation)
+                ? NotificationListener<ScrollMetricsNotification>(
+                    onNotification: handleScrollMetricsNotification,
+                    child: Scaffold(
+                      body: ListView(
+                          controller: _scrollControllers[orientation]!,
+                          scrollDirection: Axis.vertical,
+                          children: [_svgPictures[orientation]!]),
+                    ),
+                  )
+                : Placeholder();
+          }));
+    });
   }
 }
