@@ -78,6 +78,9 @@ flutter:
     - assets/emerald_moonlight.mxl
     - assets/viva_la_vida.mxl
     - assets/OuchieMyEarsHurt.mxl
+    - assets/OuchieMyEarsHurt.pdf
+
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

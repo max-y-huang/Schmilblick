@@ -49,7 +49,9 @@ List<int> processInput(List<dynamic> audioStream) {
     }
   });
 
-  return convertPitchesToIntervals(inputPitches);
+  if (inputPitches.isEmpty) return [];
+  var intervals = convertPitchesToIntervals(inputPitches);
+  return intervals;
 }
 
 class Slice {
@@ -92,6 +94,12 @@ int getCurrentMeasure(List<Slice> dstSlices, List<int> srcInterval) {
       minDist = dist;
       closestSliceMeasure = slice.measureNumber;
     }
+    // if (dist < 50) {
+    //   print('----------');
+    //   print(srcInterval);
+    //   print(slice.intervals);
+    //   print('$dist');
+    // }
   }
   return closestSliceMeasure;
 }

@@ -1,13 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:smart_turner/widgets/continuous_score_sheet.dart';
-import 'package:smart_turner/widgets/paged_score_sheet.dart';
 import 'package:smart_turner/widgets/score_sheet.dart';
 import 'audio_recorder.dart';
 import 'compiled_mxl_model.dart';
 import 'process_notes.dart';
-import 'note_tests/note_tests.dart';
+import 'dart:async';
 
 void main() => runApp(
       MultiProvider(
@@ -59,19 +56,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
+    // ignore: constant_identifier_names
     const int BUFFER = 5;
+    // ignore: constant_identifier_names
+    const int SLICE_SIZE = 15;
     CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
     await compiledMxl.getCompiledMxlAsMap();
-    List<int> src = processInput(INPUT001);
     List<Slice> dstSlices =
-        getAllSlices(compiledMxl.compiledMxlOutput, src.length, BUFFER);
-
-    int curMeasure = getCurrentMeasure(dstSlices, src);
+        getAllSlices(compiledMxl.compiledMxlOutput, SLICE_SIZE, BUFFER);
+    compiledMxl.setDstSlices(dstSlices);
   }
 
   @override
   Widget build(BuildContext context) {
-    //contourMatching(src, dst);
     return FutureBuilder(
         future: _compileFuture,
         builder: (BuildContext context, AsyncSnapshot snapshot) {
