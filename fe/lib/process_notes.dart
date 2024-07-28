@@ -68,6 +68,7 @@ class Slice {
 List<Slice> getNoteIntervalSlices(
     List<int> noteIntervals, List<int> measureNumbers, int sliceSize) {
   final int len = noteIntervals.length;
+  if (sliceSize <= 0 || sliceSize >= len) return [];
   List<Slice> slices = List<Slice>.generate(
       (len - sliceSize),
       (sliceStartIndex) => Slice(
@@ -81,7 +82,6 @@ List<Slice> getAllSlices(List<int> mxlIntervals, List<int> measureNumbers,
     int sliceSize, int buffer) {
   List<Slice> dstSlices = [];
   for (int i = sliceSize - buffer; i <= sliceSize + buffer; i++) {
-    if (i <= 0) continue;
     dstSlices.addAll(getNoteIntervalSlices(mxlIntervals, measureNumbers, i));
   }
   return dstSlices;
@@ -103,5 +103,7 @@ int getCurrentMeasure(List<Slice> dstSlices, List<int> srcInterval) {
     //   print('$dist');
     // }
   }
+  if (minDist > 50 || minDist == -1) return -1;
+  print(minDist);
   return closestSliceMeasure;
 }

@@ -97,7 +97,7 @@ List<Tuple<String, double>> getAllNotesFreq() {
 
 List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
 
-const bufferTime = 10000;
+const bufferTime = 5000;
 Stopwatch stopwatch = Stopwatch();
 
 // give the list of notes and timestamps for each note
