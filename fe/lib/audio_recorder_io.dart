@@ -97,28 +97,41 @@ List<Tuple<String, double>> getAllNotesFreq() {
 
 List<Tuple<String, double>> orderedNoteFreq = getAllNotesFreq();
 
+const bufferTime = 10000;
+Stopwatch stopwatch = Stopwatch();
+
+// give the list of notes and timestamps for each note
+List<List<int>> listNotes = List<List<int>>.empty(growable: true);
+List<int> listTimeStamps = List<int>.empty(growable: true);
+
+//-----------------------------------------------------------------
+// NEEDED FOR STREAMING FUNCTION
+
+List<List<int>> getAudioStream() {
+  int time = stopwatch.elapsedMilliseconds;
+  for (int i = 0; i < listNotes.length; i++) {
+    if (time > listTimeStamps[i] + bufferTime) {
+      listNotes.removeAt(i);
+      listTimeStamps.removeAt(i);
+      i--;
+    }
+  }
+  return listNotes;
+}
+
 mixin AudioRecorderMixin {
   final numberOfFFTBins = 8192;
+  //-----------------------------------------------------------------
+  void addToListNotes(List<int> noteGiven) {
+    int time = stopwatch.elapsedMilliseconds;
+    listNotes.add(noteGiven);
+    listTimeStamps.add(time);
+  }
 
   Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
     final path = await _getPath(false);
 
     await recorder.start(config, path: path);
-  }
-
-  List<double> findPeaks(List<double> arr, int threshold) {
-    var N = arr.length - 2;
-    var ix = List<double>.empty(growable: true);
-    var ax = List<double>.empty(growable: true);
-
-    for (int i = 1; i < N; i++) {
-      if (arr[i - 1] <= arr[i] && arr[i] >= arr[i + 1] && arr[i] > threshold) {
-        ix.add(i.toDouble());
-        ax.add(arr[i].toDouble());
-      }
-    }
-
-    return ix;
   }
 
   List<double> implementBandPassFilter(List<double> FFTData, int sampleRate,
@@ -303,6 +316,8 @@ mixin AudioRecorderMixin {
         // Convert the bytes into a 16 bit integer PCM array as convention
         var rawListIntPCM;
 
+        stopwatch.start();
+
         if (flag == 1) {
           primaryDataBuffer =
               recorder.convertBytesToInt16(Uint8List.fromList(data));
@@ -353,7 +368,12 @@ mixin AudioRecorderMixin {
           midiPitches = addMidiFinalNotes(midiPitches, freqToMIDI(pHPS[i].x));
         }
 
+        // print('Stopwatch elapsed: ${stopwatch.elapsedMilliseconds} ms');
+
+        addToListNotes(midiPitches);
+
         finalMidiPitches.add(midiPitches);
+        // print("Midi pitches: $finalMidiPitches");
         fileRawData.writeAsStringSync(rawListIntPCM.toString(),
             mode: FileMode.append);
       },
