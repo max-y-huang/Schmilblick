@@ -5,7 +5,8 @@ import 'process_notes.dart';
 
 class CompiledMxl with ChangeNotifier {
   late Map<String, dynamic> compiledMxlOutput;
-  late List<Slice> dstSlices;
+  late List<int> intervals;
+  late List<int> measureNumbers;
 
   Future<void> getCompiledMxlAsMap() async {
     final response = await compileMxl();
@@ -13,8 +14,10 @@ class CompiledMxl with ChangeNotifier {
     notifyListeners();
   }
 
-  void setDstSlices(List<Slice> slices) {
-    dstSlices = slices;
+  void setIntervalsAndMeasureNumbers(
+      List<int> pitchIntervals, List<int> measures) {
+    intervals = pitchIntervals;
+    measureNumbers = measures;
     notifyListeners();
   }
 }

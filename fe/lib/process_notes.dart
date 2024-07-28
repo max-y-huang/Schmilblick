@@ -31,6 +31,10 @@ List<int> processInput(List<dynamic> audioStream) {
       return acc;
     }
 
+    if (acc.isEmpty) {
+      return [cur[0]];
+    }
+
     if (acc.last == cur[0]) {
       return acc;
     }
@@ -73,13 +77,11 @@ List<Slice> getNoteIntervalSlices(
   return slices;
 }
 
-List<Slice> getAllSlices(
-    Map<String, dynamic> compiledMxlOutput, int sliceSize, int buffer) {
-  List<dynamic> processedMxl = processMxl(compiledMxlOutput);
-  List<int> mxlIntervals = processedMxl[0];
-  List<int> measureNumbers = processedMxl[1];
+List<Slice> getAllSlices(List<int> mxlIntervals, List<int> measureNumbers,
+    int sliceSize, int buffer) {
   List<Slice> dstSlices = [];
   for (int i = sliceSize - buffer; i <= sliceSize + buffer; i++) {
+    if (i <= 0) continue;
     dstSlices.addAll(getNoteIntervalSlices(mxlIntervals, measureNumbers, i));
   }
   return dstSlices;

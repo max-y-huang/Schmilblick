@@ -56,15 +56,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
-    // ignore: constant_identifier_names
-    const int BUFFER = 5;
-    // ignore: constant_identifier_names
-    const int SLICE_SIZE = 15;
     CompiledMxl compiledMxl = Provider.of<CompiledMxl>(context, listen: false);
     await compiledMxl.getCompiledMxlAsMap();
-    List<Slice> dstSlices =
-        getAllSlices(compiledMxl.compiledMxlOutput, SLICE_SIZE, BUFFER);
-    compiledMxl.setDstSlices(dstSlices);
+    List<dynamic> processedMxl = processMxl(compiledMxl.compiledMxlOutput);
+    compiledMxl.setIntervalsAndMeasureNumbers(processedMxl[0], processedMxl[1]);
   }
 
   @override

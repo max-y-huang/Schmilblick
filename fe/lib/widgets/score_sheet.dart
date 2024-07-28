@@ -23,6 +23,8 @@ class _ScoreSheetDisplayState extends State<ScoreSheetDisplay> {
   ScoreSheetMode mode = ScoreSheetMode.paged;
   Timer? _timer;
   final int TIMER_PERIOD = 1;
+  // ignore: constant_identifier_names
+  final int BUFFER = 5;
 
   @override
   void initState() {
@@ -32,9 +34,11 @@ class _ScoreSheetDisplayState extends State<ScoreSheetDisplay> {
       List<List<int>> stream = getAudioStream();
       print(stream);
       List<int> src = processInput(stream);
+      List<Slice> dstSlices = getAllSlices(compiledMxl.intervals,
+          compiledMxl.measureNumbers, src.length, BUFFER);
       if (src.isEmpty == false) {
-        int curMeasure = getCurrentMeasure(compiledMxl.dstSlices, src);
-        print(curMeasure);
+        int curMeasure = getCurrentMeasure(dstSlices, src);
+        print('curMeasure: $curMeasure');
       }
     });
   }
