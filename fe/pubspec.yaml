@@ -49,6 +49,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -78,10 +79,7 @@ flutter:
     - assets/joplin-scott-the-entertainer.pdf
     - assets/emerald_moonlight.mxl
     - assets/viva_la_vida.mxl
-    - assets/OuchieMyEarsHurt.mxl
-    - assets/OuchieMyEarsHurt.pdf
-
-
+    - assets/icon-dark.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
@@ -108,3 +106,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+flutter_launcher_icons:
+  image_path: "assets/icon-dark.png"
+  android: true
+  ios: true 
+  remove_alpha_ios: true
