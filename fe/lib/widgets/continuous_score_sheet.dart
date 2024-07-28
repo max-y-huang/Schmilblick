@@ -8,9 +8,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:provider/provider.dart';
-import 'package:smart_turner/backend_model.dart';
 import 'package:xml/xml.dart';
 
 class GroupInfo {
@@ -38,6 +35,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final uri = 'http://localhost:3000'; // Replace this with localhost.run uri
   final double _offsetRatio = 1 / 8;
 
+  Map<Orientation, int> _width = {};
   Map<Orientation, int> _height = {};
 
   Map<Orientation, SvgPicture> _svgPictures = {};
@@ -55,6 +53,28 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   final RegExp lineCoordinatesRegex =
       RegExp(r'M(?<x1>[\d\.]+) (?<y1>[\d\.]+)L(?<x2>[\d\.]+) (?<y2>[\d\.]+)$');
 
+  Future<http.Response> _getSvgLinks(int imageWidth) async {
+    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$uri/musicxml-to-svg'));
+    request.fields['pageWidth'] = imageWidth.toString();
+    
+    final mxlFile = uploadedFiles.mxlFile;
+    final fileBytes = mxlFile?.bytes;
+    final fileName = mxlFile?.name;
+
+    request.files.add(http.MultipartFile.fromBytes(
+      'musicxml', fileBytes!,
+      filename: fileName!
+    ));
+
+    final streamResponse = await request.send();
+    final response = await http.Response.fromStream(streamResponse);
+
+    return response;
+  }
+
   void _setDimensions() {
     FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
     Size size = view.physicalSize / view.devicePixelRatio;
@@ -65,7 +85,9 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
     final minDimension = min(width, height);
     final maxDimension = max(width, height);
 
+    _width[Orientation.portrait] = minDimension;
     _height[Orientation.portrait] = maxDimension;
+    _width[Orientation.landscape] = maxDimension;
     _height[Orientation.landscape] = minDimension;
   }
 
@@ -180,7 +202,7 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
 
   // Create measure groups containing the starting measure index
   // and the y-coordinates of the groups by parsing the SVG's XML
-  List<GroupInfo> _parseSvgXml(XmlDocument svgXml) {
+  Future<List<GroupInfo>> _parseSvgXml(XmlDocument svgXml) async {
     List<GroupInfo> groups = [];
     var stafflineElements = svgXml
         .findAllElements("g")
@@ -288,20 +310,19 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   // For each orientation, get the SVGs, parse the SVG XML,
   // display the picture and create measure groups
   void _setupSvgDocuments() async {
-    final backendResults = Provider.of<BackendResults>(context, listen: true);
     for (final orientation in Orientation.values) {
-      final svgBytes = backendResults.sheetMusicSvgBytes[orientation]!;
-
-      final svgDocument = XmlDocument.parse(utf8.decode(svgBytes));
-      final svgPicture = SvgPicture.memory(svgBytes);
-      final groups = _parseSvgXml(svgDocument);
+      final response = await _getSvgLinks(_width[orientation]!);
+      final svgBody = response.bodyBytes;
+      final svgDocument = XmlDocument.parse(utf8.decode(svgBody));
+      final svgPicture = SvgPicture.memory(svgBody);
+      final groups = await _parseSvgXml(svgDocument);
 
       setState(() {
         _svgXmls[orientation] = svgDocument;
         _svgPictures[orientation] = svgPicture;
         _groupInfos[orientation] = groups;
       });
-    }
+    };
   }
 
   void _setupScrollControllers() {
@@ -323,16 +344,8 @@ class _ContinuousScoreSheetState extends State<ContinuousScoreSheet> {
   void initState() {
     super.initState();
     _setDimensions();
-    _setupScrollControllers();  
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupSvgDocuments();
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
     _setupSvgDocuments();
+    _setupScrollControllers();  
   }
 
   @override

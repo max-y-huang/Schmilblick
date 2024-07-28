@@ -1,13 +1,5 @@
-import 'dart:convert';
-import 'dart:math';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:smart_turner/uploaded_files_model.dart';
-import 'package:provider/provider.dart';
-import 'package:smart_turner/backend_helpers.dart';
-import 'package:smart_turner/backend_model.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:smart_turner/widgets/continuous_score_sheet.dart';
 import 'package:smart_turner/widgets/paged_score_sheet.dart';
@@ -26,68 +18,21 @@ class ScoreSheetDisplay extends StatefulWidget {
 
 class _ScoreSheetDisplayState extends State<ScoreSheetDisplay> {
   ScoreSheetMode mode = ScoreSheetMode.paged;
-  late Future<void> _backendFuture;
-  
-  Future<void> getCompiledMxlAsMap() async {
-    final uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
-    final backendResults = Provider.of<BackendResults>(context, listen: false);
-
-    final mxlFile = uploadedFiles.mxlFile;
-    final fileBytes = mxlFile!.bytes!;
-    final fileName = mxlFile.name;
-
-    final response = await compileMxl(fileBytes, fileName);
-    final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
-    
-    backendResults.compiledMxlOutput = jsonBody;
-  }
-
-  Future<void> getSvgBytesPerOrientation() async {
-    final uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
-    final backendResults = Provider.of<BackendResults>(context, listen: false);
-
-    final mxlFile = uploadedFiles.mxlFile;
-    final fileBytes = mxlFile!.bytes!;
-    final fileName = mxlFile.name;
-
-    FlutterView view = WidgetsBinding.instance.platformDispatcher.views.first;
-    Size size = view.physicalSize / view.devicePixelRatio;
-
-    final width = size.width.toInt();
-    final height = size.height.toInt();
-
-    final minDimension = min(width, height);
-    final maxDimension = max(width, height);
-
-    Map<Orientation, int> orientationWidth = {
-      Orientation.portrait: minDimension,
-      Orientation.landscape: maxDimension,
-    };
-
-    for (final orientation in Orientation.values) {
-      final width = orientationWidth[orientation]!;
-      final response = await mxlToSvg(fileBytes, fileName, width);
-      final svgBody = response.bodyBytes;
-      backendResults.addMusicSvgFile(orientation, svgBody);
-    }
-  }
-
-  Future<void> _callBackends() async {
-    await Future.wait([getCompiledMxlAsMap(), getSvgBytesPerOrientation()]);
-  }
+  late Future<void> _compileFuture;
 
   @override
   void didChangeDependencies() async {
     super.didChangeDependencies();
+    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
     setState(() {
-      _backendFuture =  _callBackends();
+      _compileFuture =  uploadedFiles.getCompiledMxlAsMap();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: _backendFuture,
+      future: _compileFuture,
       builder: (BuildContext context, AsyncSnapshot snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return CircularProgressIndicator();
