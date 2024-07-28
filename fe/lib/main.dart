@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:smart_turner/widgets/upload_file_page.dart';
-import 'package:smart_turner/backend_model.dart';
 import 'package:smart_turner/widgets/score_sheet.dart';
 import 'audio_recorder.dart';
 
@@ -10,7 +10,6 @@ void main() => runApp(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => UploadedFiles()),
-          ChangeNotifierProvider(create: (_) => BackendResults()),
         ],
         child: MyApp(),
       ),
