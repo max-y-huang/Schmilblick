@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:smart_turner/measure_model.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
 import 'package:smart_turner/widgets/upload_file_page.dart';
 import 'package:smart_turner/widgets/score_sheet.dart';
@@ -10,6 +10,7 @@ void main() => runApp(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => UploadedFiles()),
+          ChangeNotifierProvider(create: (_) => MeasureModel()),
         ],
         child: MyApp(),
       ),
@@ -66,10 +67,9 @@ class _MyAppState extends State<MyApp> {
             return Column(
               children: [
                 SizedBox(
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
-                  child: ScoreSheetDisplay()
-                ),
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    child: ScoreSheetDisplay()),
                 Recorder(),
               ],
             );

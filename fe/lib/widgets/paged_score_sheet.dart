@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_turner/uploaded_files_model.dart';
+import 'package:smart_turner/measure_model.dart';
 
 class PagedScoreSheet extends StatefulWidget {
   const PagedScoreSheet({super.key});
@@ -44,7 +45,8 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
   }
 
   void _extractCompiledMxlInformation() async {
-    UploadedFiles uploadedFiles = Provider.of<UploadedFiles>(context, listen: false);
+    UploadedFiles uploadedFiles =
+        Provider.of<UploadedFiles>(context, listen: false);
     final resJson = uploadedFiles.compiledMxlOutput;
     final parts = resJson["parts"] as Map<String, dynamic>;
     final firstPart = parts.keys.first;
@@ -71,31 +73,22 @@ class _PagedScoreSheetState extends State<PagedScoreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<UploadedFiles>(builder: (context, uploadedFiles, child) {
+    return Consumer2<UploadedFiles, MeasureModel>(
+        builder: (context, uploadedFiles, measure, child) {
       final pdfBytes = uploadedFiles.pdfFile?.bytes;
+      if (measure.measure != -1) jumpToMeasure(measure.measure);
       return Container(
           color: Colors.white,
-          child: pdfBytes == null ? Placeholder() :
-            Scaffold(
-              body: PDFView(
-                pdfData: pdfBytes,
-                swipeHorizontal: true,
-                onViewCreated: _initializeController,
-              ),
-              // TODO: Remove this button (testing purposes only)
-              floatingActionButton: FloatingActionButton.extended(
-                onPressed: () {
-                  jumpToMeasure(_randomMeasure);
-                  setState(() {
-                    _randomMeasure = rand.nextInt(_pageTable.length);
-                  });
-                },
-                label: Text('${_randomMeasure + 1}',
-                    style: const TextStyle(
-                      fontSize: 60.0,
-                    )),
-              ))
-      );
+          child: pdfBytes == null
+              ? Placeholder()
+              : Scaffold(
+                  body: PDFView(
+                    pdfData: pdfBytes,
+                    swipeHorizontal: true,
+                    onViewCreated: _initializeController,
+                  ),
+                  // TODO: Remove this button (testing purposes only)
+                ));
     });
   }
 }
